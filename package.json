@@ -1,0 +1,15 @@
+{
+  "name": "tunnel-server",
+  "version": "1.0.0",
+  "description": "A test server to implement a concept of server tunneling",
+  "main": "server.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "author": "sheikhMishar00",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "socket.io": "^2.3.0"
+  }
+}

@@ -10,6 +10,7 @@ var isTunneling = false,
 
 // server variables
 var serverURL = 'localhost-tunnel.herokuapp.com' // will be replaced by deployed server url
+// var serverURL = 'localhost:5000' // will be replaced by deployed server url
 var socket
 
 // helper functions

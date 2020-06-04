@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "C:\\tmp\\localhost-tunnel\\server"
+		}
+	],
+	"settings": {
+		"debug.node.autoAttach": "on",
+		"debug.showInStatusBar": "always"
+	}
+}

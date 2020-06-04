@@ -1,11 +1,12 @@
 {
   "name": "tunnel-server",
   "version": "1.0.0",
-  "description": "A test server to implement a concept of server tunneling",
+  "description": "A test server to implement a concept of localhost tunneling",
   "main": "server.js",
   "scripts": {
-    "test": "node test.js",
-    "hotreload": "nodemon server.js"
+    "test": "mocha test.js",
+    "watch": "nodemon server.js",
+    "watch:debug": "nodemon -e js,json -x \"node --inspect-brk server.js\""
   },
   "author": "sheikhMishar00",
   "license": "ISC",

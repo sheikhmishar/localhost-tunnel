@@ -16,14 +16,13 @@ var socket
 function intitiateSocket() {
 	socket = io.connect('ws://' + serverURL)
 	socket.on('connect', function() {
-		console.log('connected username', usernameInput.value)
+		socket.emit('change_username', { username: usernameInput.value })
 	})
 	socket.on('request', tunnelLocalhostToServer)
 }
 
 function tunnelLocalhostToServer(serverRequest) {
-	makeRequestToLocalhost(serverRequest)
-		.then(sendResponsoToServer)
+	makeRequestToLocalhost(serverRequest).then(sendResponsoToServer)
 }
 
 function makeRequestToLocalhost(req) {
@@ -39,17 +38,21 @@ function makeRequestToLocalhost(req) {
 	return axios(requestParameters)
 }
 
-function sendResponsoToServer(localhostResponse){
-	socket.emit('response', localhostResponse) 
+function sendResponsoToServer(localhostResponse) {
+	socket.emit('response', localhostResponse)
 }
 
 function refreshTunnelStatus() {
 	if (isTunneling) {
 		appendLog('Tunnel is running at port ' + portInput.value)
 		appendLog(
-			"Your localhost is now avaiable at " +
-			"http://" + serverURL + "/" + usernameInput.value + '/'
-		);
+			'Your localhost is now avaiable at ' +
+				'http://' +
+				serverURL +
+				'/' +
+				usernameInput.value +
+				'/'
+		)
 		tunnelToggleButton.innerText = 'Stop tunneling'
 	} else {
 		appendLog('Tunnel is stopped')
@@ -73,10 +76,8 @@ function validate() {
 }
 
 function validateInputs() {
-	if (portInput.value.length < 2)
-		appendLog('Port length must be at least 2')
-	else if (portInput.value[0] === '0')
-		appendLog('Port cannot start with 0')
+	if (portInput.value.length < 2) appendLog('Port length must be at least 2')
+	else if (portInput.value[0] === '0') appendLog('Port cannot start with 0')
 	else if (usernameInput.value.length <= 0) {
 		appendLog('Username length must be at least 1')
 	} else {
@@ -103,7 +104,7 @@ function appendLog(log) {
 	newDomElement.innerText = log
 	logWrapper.appendChild(newDomElement)
 
-	if(logWrapper.childElementCount > maxLogLength)
+	if (logWrapper.childElementCount > maxLogLength)
 		logWrapper.firstChild.remove()
 }
 

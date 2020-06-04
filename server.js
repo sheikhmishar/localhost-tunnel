@@ -8,26 +8,34 @@ app.use(express.urlencoded({ extended: true }))
 
 app.use('/', express.static('public'))
 
-let clientSocket
+const clientSockets = []
+const findClientSocketByUsername = username =>
+	clientSockets.find(socket => socket.username === username)
+const removeClientSocket = socket => {
+	const clientSocketIndex = clientSockets.findIndex(soc => soc.id === socket.id)
+	clientSockets.splice(clientSocketIndex, 1)
+}
 
-app.get('/:user/*', (req, res) => {
+app.get('/:username/*', (req, res) => {
 	const { url, method, headers, body } = req
+	const { username } = req.params
 	const clientRequest = {
-		url: url.replace(`/${req.params.user}`, ''),
+		url: url.replace(`/${username}`, ''),
 		method,
 		headers,
 		body
 	}
 	io.emit('request', clientRequest)
 
+	const clientSocket = findClientSocketByUsername(username)
 	const onClientResponse = clientResponse => {
 		clientSocket.off('response', onClientResponse)
-
 		if (clientResponse.headers['content-type'])
 			res.contentType(clientResponse.headers['content-type'])
 		res.send(clientResponse.data)
 	}
 	if (clientSocket) clientSocket.on('response', onClientResponse)
+	else res.json({ message: 'Client not available' })
 })
 
 app.post('/validateusername', (req, res) => {
@@ -43,7 +51,14 @@ const server = app.listen(PORT, () =>
 const io = require('socket.io')(server)
 
 io.on('connection', socket => {
-	console.log('New client joined', socket.id)
-	clientSocket = socket
-	socket.on('disconnect', () => console.log('disconnected', socket.id))
+	clientSockets.push(socket)
+	socket.username = 'anonymous'
+	socket.on('change_username', data => {
+		socket.username = data.username
+		console.log('User joined', socket.id, socket.username)
+	})
+	socket.on('disconnect', () => {
+		console.log('User left', socket.id, socket.username)
+		removeClientSocket(socket)
+	})
 })

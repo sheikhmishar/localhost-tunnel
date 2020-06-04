@@ -1,0 +1,111 @@
+:root {
+  --color-primary: #26c6da;
+  --color-secondary: #00acc1;
+  --color-dark: #212121;
+  --text-primary: #fafafa;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url('../fonts/Montserrat-Regular.ttf');
+}
+
+@font-face {
+  font-family: "Fira Code";
+  src: url('../fonts/FiraCode-Regular.ttf');
+}
+
+body {
+  font-family: "Montserrat", sans-serif;
+  /*border: 10px solid black;
+  border-radius: 20px*/
+}
+
+.bg-primary {
+  background-color: var(--color-primary) !important;
+}
+
+.bg-secondary {
+  background-color: var(--color-secondary) !important;
+}
+
+.bg-dark {
+  background-color: var(--color-dark) !important;
+}
+
+.text-primary {
+  color: var(--text-primary) !important;
+}
+
+a.navbar-brand:hover {
+  color: var(--color-primary) !important;
+}
+
+.btn-primary {
+  background-color: var(--color-primary) !important;
+  border-color: var(--text-primary) !important;
+  border-width: 0.1rem;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--color-secondary) !important;
+  border-color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+
+.form-control,
+.form-control:focus {
+  background-color: transparent;
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  text-align: center;
+  box-shadow: none !important;
+  border: 1px solid var(--color-secondary);
+  border: none;
+  border-bottom: 0.1rem solid var(--text-primary);
+}
+
+.form-control:hover {
+  transition: background-color 0.3s ease-in;
+  background-color: var(--color-secondary);
+}
+
+.form-control::placeholder {
+  transition: color 0.3s ease-in;
+  color: var(--color-secondary);
+}
+
+.form-control:hover::placeholder {
+  transition: color 0.3s ease-in;
+  color: var(--color-primary);
+}
+
+
+.log-terminal {
+  height: 200px;
+  font-family: "Fira Code", monospace;
+}
+
+.log-wrapper {
+  overflow-y: scroll;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.h-90 {
+  height: 90%;
+}

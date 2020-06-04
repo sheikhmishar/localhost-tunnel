@@ -4,7 +4,8 @@
   "description": "A test server to implement a concept of server tunneling",
   "main": "server.js",
   "scripts": {
-    "test": "node test.js"
+    "test": "node test.js",
+    "hotreload": "nodemon server.js"
   },
   "author": "sheikhMishar00",
   "license": "ISC",

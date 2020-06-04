@@ -4,75 +4,60 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Tunnel Homepage</title>
+		<title>Localhost Webtunnel</title>
+		<link rel="stylesheet" href="css/bootstrap.css">
+		<link rel="stylesheet" href="css/style.css">
+		<!-- <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet"> -->
+		<!-- <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet"> -->
+		<!-- <link rel="stylesheet" href="css/bootstrap-grid.min.css"> -->
 	</head>
 
-	<body>
-		<input type="number" name="port" id="port" placeholder="80" />
-		<button id="tunnel-toggle"></button>
-		<h2 id="status"></h2>
+	<body class="bg-primary text-primary">
+		<nav class="navbar navbar-expand-sm fixed-top bg-secondary rounded-top">
+			<div class="container d-flex justify-content-center">
+				<a href="/" class="navbar-brand text-primary">
+					<h3><strong class="text-uppercase">localhost tunneller</strong></h3>
+				</a>
+			</div>
+		</nav>
+		<main class="my-5 py-5">
+			<div class="container my-5">
+				<div class="row">
+					<div class="col-md-6">
+						<div class="form-group">
+							<input type="text" id="username-input" placeholder="Username" class="form-control" />
+						</div>
+						<div class="form-group">
+							<input type="number" id="port-input" class="form-control" placeholder="Localhost Port" />
+						</div>
+						<div>
+							<button id="tunnel-toggle-button" class="btn btn-primary btn-block"></button>
+						</div>
+					</div>
+					<div class="col-md-6">
+						<div class="col h-100 bg-secondary rounded">
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="container">
+				<div class="row">
+					<div class="col">
+						<div class="h-100 bg-dark rounded p-3">
+							<div class="log-terminal">
+								<h6 class="text-primary text-uppercase">logs</h6>
 
-
-
-		<script src="/js/axios.min.js"></script>
-		<script src="/js/socket.io.js"></script>
-
-
-
-
-		<script>
-			const portInput = document.querySelector("#port"),
-				tunnelToggleButton = document.querySelector("#tunnel-toggle"),
-				statusText = document.querySelector("#status");
-
-			let isTunneling = false;
-			const refreshTunnelStatus = () => {
-				if (isTunneling) {
-					statusText.innerText = `Tunnel is running at port ${portInput.value}`;
-					tunnelToggleButton.innerText = "Stop tunneling";
-				}
-				else {
-					statusText.innerText = "Tunnel is stopped";
-					tunnelToggleButton.innerText = "Start tunneling";
-				}
-			};
-			refreshTunnelStatus();
-
-			const toggleTunnel = () => {
-				isTunneling = !isTunneling;
-				refreshTunnelStatus();
-			};
-
-			tunnelToggleButton.onclick = () => {
-				if (portInput.value.length < 2)
-					statusText.innerText = 'Port length must be at least 2';
-				else {
-					if (true) {
-						toggleTunnel();
-					}
-				}
-			};
-		</script>
-
-
-		<script>
-			const socket = io.connect('localhost:5000'); // will be replaced by deployed server
-
-			socket.on('request', (data) => {
-				console.log('request', data);
-
-				let reply;
-				const url = `http://localhost:${portInput.value}${data.url}`;
-				console.log(url);
-				axios.get(url).then(res => {
-					console.log(res);
-					reply = res
-					console.log('reply', reply);
-					socket.emit('reply', reply.data);
-				})
-			})
-		</script>
-
+								<div class="log-wrapper mt-2 h-90">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+		<script src="js/axios.min.js"></script>
+		<script src="js/socket.io.js"></script>
+		<script src="js/script.js"></script>
 	</body>
 
 </html>

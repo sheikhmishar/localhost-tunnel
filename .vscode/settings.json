@@ -1,5 +1,10 @@
 {
 	"prettier.semi": false,
-	"prettier.useTabs": true,
-	"prettier.singleQuote": true
+	"prettier.singleQuote": true,
+	"prettier.tabWidth": 2,
+
+	"html.format.extraLiners": null,
+	"editor.tabSize": 2,
+	"html.format.indentInnerHtml": false,
+	"html.format.preserveNewLines": false
 }

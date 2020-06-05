@@ -1,49 +1,63 @@
 const express = require('express')
 const app = express()
 
-const PORT = process.env.PORT || 5000
+const { json, urlencoded, static } = express
+app.use(json())
+app.use(urlencoded({ extended: true }))
+app.use('/', static('public'))
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-
-app.use('/', express.static('public'))
-
-const clientSockets = []
-const findClientSocketByUsername = username =>
-  clientSockets.find(socket => socket.username === username)
-const removeClientSocket = socket => {
-  const clientSocketIndex = clientSockets.findIndex(soc => soc.id === socket.id)
-  clientSockets.splice(clientSocketIndex, 1)
+let clientSockets = []
+function findClientSocketByUsername(username) {
+  return clientSockets.find(socket => socket.username === username)
+}
+function removeClientSocket(clientSocket) {
+  clientSockets = clientSockets.filter(socket => socket.id !== clientSocket.id)
 }
 
 app.get('/:username/*', (req, res) => {
-  const { url, method, headers, body } = req
   const { username } = req.params
-  const clientRequest = {
-    url: url.replace(`/${username}`, ''),
-    method,
-    headers,
-    body
-  }
-  io.emit('request', clientRequest)
-
   const clientSocket = findClientSocketByUsername(username)
-  const onClientResponse = clientResponse => {
-    clientSocket.off('response', onClientResponse)
-    if (clientResponse.headers['content-type'])
-      res.contentType(clientResponse.headers['content-type'])
-    res.send(clientResponse.data)
-  }
-  if (clientSocket) clientSocket.on('response', onClientResponse)
-  else res.json({ message: 'Client not available' })
+
+  if (clientSocket) {
+    const { url, method, headers, body } = req
+    const clientRequest = {
+      url: url.replace(`/${username}`, ''),
+      method,
+      headers,
+      body
+    }
+    clientSocket.emit('request', clientRequest)
+
+    function onClientResponse(clientResponse) {
+      clientSocket.off('response', onClientResponse)
+      // if (clientResponse.headers['content-type'])
+      res.contentType(clientResponse.headers['content-type'] || 'text/plain')
+      res.send(clientResponse.data)
+    }
+    clientSocket.on('response', onClientResponse)
+  } else res.json({ message: 'Client not available' })
 })
 
 app.post('/validateusername', (req, res) => {
-  if (req.body.username != 'invalid')
-    res.status(200).json({ isValidUsername: true })
-  else res.status(200).json({ isValidUsername: false })
+  const { username } = req.body
+  if (findClientSocketByUsername(username))
+    res.status(200).json({ isValidUsername: false })
+  else res.status(200).json({ isValidUsername: true })
 })
 
+app.get('/ping', (req, res) => {
+  res.status(200).json({ message: 'Server is alive' })
+})
+
+app.use((req, res, next) => {
+  res.status(404).json({ message: '404 Invalid Route' })
+})
+
+app.use((err, req, res, next) => {
+  res.status(500).json({ message: '500 Internal Server Error' })
+})
+
+const PORT = process.env.PORT || 5000
 const server = app.listen(PORT, () =>
   console.log(`Running server on port ${PORT}`)
 )
@@ -51,14 +65,17 @@ const server = app.listen(PORT, () =>
 const io = require('socket.io')(server)
 
 io.on('connection', socket => {
-  clientSockets.push(socket)
-  socket.username = 'anonymous'
-  socket.on('change_username', data => {
+  socket.on('username', data => {
     socket.username = data.username
-    console.log('User joined', socket.id, socket.username)
+    clientSockets.push(socket)
+    console.log(
+      `Joined ${socket.id} ${socket.username} Total users: ${clientSockets.length}`
+    )
   })
   socket.on('disconnect', () => {
-    console.log('User left', socket.id, socket.username)
     removeClientSocket(socket)
+    console.log(
+      `Left ${socket.id} ${socket.username} Total users: ${clientSockets.length}`
+    )
   })
 })

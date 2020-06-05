@@ -110,7 +110,7 @@ function appendLog(log) {
   logWrapper.prepend(newDomElement)
 
   if (logWrapper.childElementCount > maxLogLength)
-    logWrapper.firstChild.remove()
+    logWrapper.lastChild.remove()
 }
 
 // main

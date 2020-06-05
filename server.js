@@ -45,17 +45,17 @@ app.post('/validateusername', (req, res) => {
   else res.status(200).json({ isValidUsername: true })
 })
 
-app.get('/ping', (req, res) => {
+app.get('/ping', (req, res) =>
   res.status(200).json({ message: 'Server is alive' })
-})
+)
 
-app.use((req, res, next) => {
+app.use((req, res, next) =>
   res.status(404).json({ message: '404 Invalid Route' })
-})
+)
 
-app.use((err, req, res, next) => {
+app.use((err, req, res, next) =>
   res.status(500).json({ message: '500 Internal Server Error' })
-})
+)
 
 const PORT = process.env.PORT || 5000
 const server = app.listen(PORT, () =>

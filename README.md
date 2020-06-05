@@ -6,6 +6,7 @@
 2. No hastle of installing third party tool
 3. Very simple to use. Open the web page and type your running server's HTTP port
 4. On screen real time log viewer
+5. All devices are supported including smart phones as long as it has a web browser
 
 ## Screenshots:
 

@@ -3,7 +3,9 @@
 
 ## Features:
 1. Make any HTTP request and get response as one would make in local server
-2. Very simple to use. Just client needs to open the web page and type his running http port.
+2. No hastle of installing third party tool
+3. Very simple to use. Open the web page and type your running server's HTTP port
+4. On screen real time log viewer
 
 ## Screenshots:
 

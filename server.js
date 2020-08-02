@@ -14,6 +14,8 @@ function removeClientSocket(clientSocket) {
   clientSockets = clientSockets.filter(socket => socket.id !== clientSocket.id)
 }
 
+const { Readable } = require('stream')
+
 app.get('/:username/*', (req, res) => {
   const { username } = req.params
   const clientSocket = findClientSocketByUsername(username)
@@ -24,15 +26,21 @@ app.get('/:username/*', (req, res) => {
       url: url.replace(`/${username}`, ''),
       method,
       headers,
-      body
+      body // TODO: confirm binary
     }
     clientSocket.emit('request', clientRequest)
 
     function onClientResponse(clientResponse) {
       clientSocket.off('response', onClientResponse)
-      // if (clientResponse.headers['content-type'])
+      const url = req.url.split('/')
+      const filename = url[url.length - 1]
       res.contentType(clientResponse.headers['content-type'] || 'text/plain')
-      res.send(clientResponse.data)
+      res.set('Content-disposition', `inline; filename="${filename}"`)
+      // res.set('Content-Transfer-Encoding', 'binary')
+      // res.status(200).send(clientResponse.data)
+
+      const stream = Readable.from(clientResponse.data)
+      stream.pipe(res)
     }
     clientSocket.on('response', onClientResponse)
   } else res.json({ message: 'Client not available' })

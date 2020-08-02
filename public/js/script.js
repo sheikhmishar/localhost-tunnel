@@ -5,7 +5,7 @@ var usernameInput = document.querySelector('#username-input'),
   logWrapper = document.querySelector('.log-wrapper')
 
 // State variables
-var isTunneling = false,
+var shouldTunnel = false,
   maxLogLength = 20
 
 // Server variables
@@ -46,18 +46,39 @@ function makeRequestToLocalhost(req) {
     withCredentials: true,
     method,
     url,
-    data
+    data,
+    responseType: 'arraybuffer',
+    headers: {
+      Accept: '*/*;q=0.8'
+    },
+    onUploadProgress: function(progressEvent) {
+      console.log(
+        method,
+        url,
+        Math.round((progressEvent.loaded * 100) / progressEvent.total),
+        '%'
+      ) // TODO: send chunk by chunk response sendResponsoToServer
+    },
+    onDownloadProgress: function(progressEvent) {
+      console.log(
+        method,
+        url,
+        Math.round((progressEvent.loaded * 100) / progressEvent.total),
+        '%'
+      ) // TODO: send chunk by chunk response sendResponsoToServer
+    }
   }
   return axios(requestParameters)
 }
 
 function sendResponsoToServer(localhostResponse) {
-  socket.emit('response', localhostResponse)
+  const { headers, data } = localhostResponse
+  socket.emit('response', { headers, data })
 }
 
 // UI helper functions
 function refreshTunnelStatus() {
-  if (isTunneling) {
+  if (shouldTunnel) {
     appendLog('Tunnel is running at port ' + portInput.value)
     appendLog(
       'Your localhost is now avaiable at ' +
@@ -75,16 +96,16 @@ function refreshTunnelStatus() {
 }
 
 function toggleTunnel() {
-  isTunneling = !isTunneling
+  shouldTunnel = !shouldTunnel
 
-  if (isTunneling) intitiateSocket()
+  if (shouldTunnel) intitiateSocket()
   else socket.disconnect()
 
   refreshTunnelStatus()
 }
 
 function validate() {
-  if (!isTunneling) validateInputs()
+  if (!shouldTunnel) validateInputs()
   else toggleTunnel()
 }
 
@@ -109,8 +130,7 @@ function appendLog(log) {
   newDomElement.innerText = log
   logWrapper.prepend(newDomElement)
 
-  if (logWrapper.childElementCount > maxLogLength)
-    logWrapper.lastChild.remove()
+  if (logWrapper.childElementCount > maxLogLength) logWrapper.lastChild.remove()
 }
 
 // main

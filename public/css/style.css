@@ -6,17 +6,17 @@
 }
 
 @font-face {
-  font-family: "Montserrat";
+  font-family: 'Montserrat';
   src: url('../fonts/Montserrat-Regular.ttf');
 }
 
 @font-face {
-  font-family: "Fira Code";
+  font-family: 'Fira Code';
   src: url('../fonts/FiraCode-Regular.ttf');
 }
 
 body {
-  font-family: "Montserrat", sans-serif;
+  font-family: 'Montserrat', sans-serif;
   /*border: 10px solid black;
   border-radius: 20px*/
 }
@@ -81,10 +81,9 @@ a.navbar-brand:hover {
   color: var(--color-primary);
 }
 
-
 .log-terminal {
   height: 200px;
-  font-family: "Fira Code", monospace;
+  font-family: 'Fira Code', monospace;
 }
 
 .log-wrapper {
@@ -108,4 +107,8 @@ a.navbar-brand:hover {
 
 .h-90 {
   height: 90%;
+}
+
+.badge {
+  font-size: inherit;
 }

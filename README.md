@@ -2,11 +2,12 @@
 #### A simple web app to make local http server live on the internet without installing any tool on the client side
 
 ## Features:
-1. Make any HTTP request and get response as one would make in local server
+1. Make any HTTP request and get response as one would do in local server
 2. No hastle of installing third party tool
 3. Very simple to use. Open the web page and type your running server's HTTP port
 4. On screen real time log viewer
 5. All devices are supported including smart phones as long as it has a web browser
+6. Binary data supported
 
 ## Screenshots:
 
@@ -17,7 +18,7 @@
 ## Limitations:
 1. HTTP only, without TCP support
 2. No stream support
-3. Only text data is supported
+3. No form data upload support upto now
 
 ## How to use Locally ( for now ):
 1. Open terminal in the project directory and type:

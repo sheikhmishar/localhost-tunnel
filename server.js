@@ -1,3 +1,4 @@
+const { Readable } = require('stream')
 const express = require('express')
 const app = express()
 
@@ -7,49 +8,63 @@ app.use(urlencoded({ extended: true }))
 app.use('/', static('public'))
 
 let clientSockets = []
-function findClientSocketByUsername(username) {
-  return clientSockets.find(socket => socket.username === username)
-}
-function removeClientSocket(clientSocket) {
-  clientSockets = clientSockets.filter(socket => socket.id !== clientSocket.id)
-}
+const findClientSocketByUsername = username =>
+    clientSockets.find(socket => socket.username === username),
+  removeClientSocket = clientSocket =>
+    (clientSockets = clientSockets.filter(
+      socket => socket.id !== clientSocket.id
+    ))
 
-const { Readable } = require('stream')
-
-app.get('/:username/*', (req, res) => {
+app.all('/:username/*', (req, res) => {
   const { username } = req.params
   const clientSocket = findClientSocketByUsername(username)
 
   if (clientSocket) {
-    const { url, method, headers, body } = req
-    const clientRequest = {
-      url: url.replace(`/${username}`, ''),
-      method,
-      headers,
-      body // TODO: confirm binary
-    }
+    const { method, headers, body } = req,
+      url = req.url.replace(`/${username}`, ''),
+      clientRequest = {
+        url,
+        method,
+        headers,
+        body // TODO: confirm binary
+      }
     clientSocket.emit('request', clientRequest)
 
-    function onClientResponse(clientResponse) {
-      clientSocket.off('response', onClientResponse)
-      const url = req.url.split('/')
-      const filename = url[url.length - 1]
-      res.contentType(clientResponse.headers['content-type'] || 'text/plain')
+    const onClientResponse = clientResponse => {
+      clientSocket.off(url, onClientResponse)
+
+      const filename = url === '' ? 'index.html' : url.split('/').pop() // TODO: get from response
       res.set('Content-disposition', `inline; filename="${filename}"`)
+      res.contentType(clientResponse.headers['content-type'] || 'text/plain')
+      res.set(
+        'Last-Modified',
+        clientResponse.headers['last-modified'] || new Date().toUTCString()
+      )
+      res.set(
+        'Cache-Control',
+        clientResponse.headers['cache-control'] || 'public, max-age=0'
+      )
+      res.set('Accept-Ranges', 'bytes')
+      res.set(
+        'Content-Length',
+        Buffer.byteLength(clientResponse.data, 'binary').toString()
+      )
+      res.set('Vary', 'Origin')
+      res.status(clientResponse.status)
       // res.set('Content-Transfer-Encoding', 'binary')
-      // res.status(200).send(clientResponse.data)
+      // res.send(clientResponse.data)
 
       const stream = Readable.from(clientResponse.data)
       stream.pipe(res)
     }
-    clientSocket.on('response', onClientResponse)
+    clientSocket.on(url, onClientResponse)
   } else res.json({ message: 'Client not available' })
 })
 
 app.post('/validateusername', (req, res) => {
   const { username } = req.body
   if (findClientSocketByUsername(username))
-    res.status(200).json({ isValidUsername: false })
+    res.status(404).json({ isValidUsername: false })
   else res.status(200).json({ isValidUsername: true })
 })
 

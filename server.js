@@ -1,8 +1,10 @@
 const { Readable } = require('stream')
+const { v1: uid } = require('uuid')
+const parseUrl = require('url').parse
 const express = require('express')
 const app = express()
 
-const { json, urlencoded, static } = express
+const { json, urlencoded, raw, static } = express // TODO: add raw and formdata support
 app.use(json())
 app.use(urlencoded({ extended: true }))
 app.use(static('public'))
@@ -23,21 +25,24 @@ app.all('/:username/*', (req, res) => {
     return res.status(404).json({ message: 'Client not available' })
 
   const url = req.url.replace(`/${username}`, ''),
-    { method, headers, body } = req
+    { method, headers, body } = req,
+    requestId = uid(),
+    responseId = requestId
 
   const clientRequest = {
+    requestId,
     url,
     method,
     headers,
-    body // TODO: confirm binary
+    body
   }
   clientSocket.emit('request', clientRequest)
 
   const handleClientResponse = clientResponse => {
-    clientSocket.off(url, handleClientResponse)
+    clientSocket.off(responseId, handleClientResponse)
 
     const filename =
-      url[url.length - 1] === '/' ? 'index.html' : url.split('/').pop() // TODO: get from response
+      parseUrl(url).path === '/' ? 'index.html' : url.split('/').pop() // TODO: get from response
     res.set('Content-disposition', `inline; filename="${filename}"`)
     res.contentType(clientResponse.headers['content-type'] || 'text/plain')
     res.set(
@@ -48,21 +53,17 @@ app.all('/:username/*', (req, res) => {
       'Cache-Control',
       clientResponse.headers['cache-control'] || 'public, max-age=0'
     )
-    res.set('Accept-Ranges', 'bytes')
     res.set(
       'Content-Length',
       Buffer.byteLength(clientResponse.data, 'binary').toString()
     )
     res.status(clientResponse.status)
-    // res.set('Content-Transfer-Encoding', 'binary')
-    // res.send(clientResponse.data)
-
     const stream = Readable.from(clientResponse.data)
     stream.pipe(res)
     stream.on('end', () => stream.destroy())
     stream.on('error', () => console.log(url, 'stream error'))
   }
-  clientSocket.on(url, handleClientResponse)
+  clientSocket.on(responseId, handleClientResponse)
 })
 
 app.post('/validateusername', (req, res) => {

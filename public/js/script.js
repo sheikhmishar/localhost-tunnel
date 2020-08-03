@@ -35,7 +35,8 @@ function validateUsername(username) {
 }
 
 function tunnelLocalhostToServer(serverRequest) {
-  var pathname = serverRequest.url
+  var pathname = serverRequest.url,
+    responseId = serverRequest.requestId
   makeRequestToLocalhost(serverRequest)
     .catch(function(localhostResponseError) {
       return localhostResponseError.response
@@ -52,43 +53,35 @@ function tunnelLocalhostToServer(serverRequest) {
             'http://' + serverURL + '/' + usernameInput.value + pathname
           )
       )
-      sendResponsoToServer(localhostResponse, pathname)
+      sendResponsoToServer(localhostResponse, responseId)
     })
     .catch(function(error) {
-      function ObjectToArrayBuffer(object) {
-        var json = JSON.stringify(object)
-        var buffer = new ArrayBuffer(json.length)
-        var container = new Uint8Array(buffer)
-        for (var i = 0; i < json.length; i++) {
-          container[i] = json.charCodeAt(i)
-        }
-        return buffer
-      }
-      
       sendResponsoToServer(
         {
           status: 500,
           headers: serverRequest.headers,
           data: ObjectToArrayBuffer({ message: '505 Error' })
         },
-        pathname
+        responseId
       )
     })
 }
 
 function makeRequestToLocalhost(req) {
-  var { method, url: pathname, headers, data } = req
-  var url = 'http://localhost:' + portInput.value + pathname
+  var { method, data } = req,
+    url = 'http://localhost:' + portInput.value + req.url,
+    headers = {
+      Accept: req.headers['accept'],
+      'Accept-Language': req.headers['accept-language']
+    }
+
   var requestParameters = {
-    // headers, // TODO: fix errors
-    withCredentials: true,
+    headers,
     method,
     url,
     data,
+    withCredentials: true,
     responseType: 'arraybuffer',
-    headers: {
-      Accept: '*/*;q=0.8'
-    },
     onUploadProgress: function(progressEvent) {
       console.log(
         'DOWNLOAD ' +
@@ -111,15 +104,25 @@ function makeRequestToLocalhost(req) {
   return axios(requestParameters)
 }
 
-function sendResponsoToServer(localhostResponse, localhostRequestPath) {
+function sendResponsoToServer(localhostResponse, responseId) {
   var status = localhostResponse.status
   var headers = localhostResponse.headers
   var data = localhostResponse.data
-  socket.emit(localhostRequestPath, {
+  socket.emit(responseId, {
     status: status,
     headers: headers,
     data: data
   })
+}
+
+function ObjectToArrayBuffer(object) {
+  var json = JSON.stringify(object)
+  var buffer = new ArrayBuffer(json.length)
+  var container = new Uint8Array(buffer)
+  for (var i = 0; i < json.length; i++) {
+    container[i] = json.charCodeAt(i)
+  }
+  return buffer
 }
 
 // UI helper functions

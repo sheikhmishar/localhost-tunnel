@@ -5,7 +5,7 @@ const app = express()
 const { json, urlencoded, static } = express
 app.use(json())
 app.use(urlencoded({ extended: true }))
-app.use('/', static('public'))
+app.use(static('public'))
 
 let clientSockets = []
 const findClientSocketByUsername = username =>
@@ -19,52 +19,56 @@ app.all('/:username/*', (req, res) => {
   const { username } = req.params
   const clientSocket = findClientSocketByUsername(username)
 
-  if (clientSocket) {
-    const { method, headers, body } = req,
-      url = req.url.replace(`/${username}`, ''),
-      clientRequest = {
-        url,
-        method,
-        headers,
-        body // TODO: confirm binary
-      }
-    clientSocket.emit('request', clientRequest)
+  if (!clientSocket)
+    return res.status(404).json({ message: 'Client not available' })
 
-    const onClientResponse = clientResponse => {
-      clientSocket.off(url, onClientResponse)
+  const url = req.url.replace(`/${username}`, ''),
+    { method, headers, body } = req
 
-      const filename = url === '' ? 'index.html' : url.split('/').pop() // TODO: get from response
-      res.set('Content-disposition', `inline; filename="${filename}"`)
-      res.contentType(clientResponse.headers['content-type'] || 'text/plain')
-      res.set(
-        'Last-Modified',
-        clientResponse.headers['last-modified'] || new Date().toUTCString()
-      )
-      res.set(
-        'Cache-Control',
-        clientResponse.headers['cache-control'] || 'public, max-age=0'
-      )
-      res.set('Accept-Ranges', 'bytes')
-      res.set(
-        'Content-Length',
-        Buffer.byteLength(clientResponse.data, 'binary').toString()
-      )
-      res.set('Vary', 'Origin')
-      res.status(clientResponse.status)
-      // res.set('Content-Transfer-Encoding', 'binary')
-      // res.send(clientResponse.data)
+  const clientRequest = {
+    url,
+    method,
+    headers,
+    body // TODO: confirm binary
+  }
+  clientSocket.emit('request', clientRequest)
 
-      const stream = Readable.from(clientResponse.data)
-      stream.pipe(res)
-    }
-    clientSocket.on(url, onClientResponse)
-  } else res.json({ message: 'Client not available' })
+  const handleClientResponse = clientResponse => {
+    clientSocket.off(url, handleClientResponse)
+
+    const filename =
+      url[url.length - 1] === '/' ? 'index.html' : url.split('/').pop() // TODO: get from response
+    res.set('Content-disposition', `inline; filename="${filename}"`)
+    res.contentType(clientResponse.headers['content-type'] || 'text/plain')
+    res.set(
+      'Last-Modified',
+      clientResponse.headers['last-modified'] || new Date().toUTCString()
+    )
+    res.set(
+      'Cache-Control',
+      clientResponse.headers['cache-control'] || 'public, max-age=0'
+    )
+    res.set('Accept-Ranges', 'bytes')
+    res.set(
+      'Content-Length',
+      Buffer.byteLength(clientResponse.data, 'binary').toString()
+    )
+    res.status(clientResponse.status)
+    // res.set('Content-Transfer-Encoding', 'binary')
+    // res.send(clientResponse.data)
+
+    const stream = Readable.from(clientResponse.data)
+    stream.pipe(res)
+    stream.on('end', () => stream.destroy())
+    stream.on('error', () => console.log(url, 'stream error'))
+  }
+  clientSocket.on(url, handleClientResponse)
 })
 
 app.post('/validateusername', (req, res) => {
   const { username } = req.body
   if (findClientSocketByUsername(username))
-    res.status(404).json({ isValidUsername: false })
+    res.status(400).json({ isValidUsername: false })
   else res.status(200).json({ isValidUsername: true })
 })
 
@@ -85,19 +89,19 @@ const server = app.listen(PORT, () =>
   console.log(`Running server on port ${PORT}`)
 )
 
-const io = require('socket.io')(server)
-
-io.on('connection', socket => {
-  socket.on('username', data => {
-    socket.username = data.username
+require('socket.io')(server).on('connection', socket => {
+  socket.on('username', ({ username }) => {
+    // @ts-ignore
+    socket.username = username
     clientSockets.push(socket)
     console.log(
-      `Joined ${socket.id} ${socket.username} Total users: ${clientSockets.length}`
+      `Joined ${socket.id} ${username} Total users: ${clientSockets.length}`
     )
   })
   socket.on('disconnect', () => {
     removeClientSocket(socket)
     console.log(
+      // @ts-ignore
       `Left ${socket.id} ${socket.username} Total users: ${clientSockets.length}`
     )
   })

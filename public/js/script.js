@@ -54,6 +54,26 @@ function tunnelLocalhostToServer(serverRequest) {
       )
       sendResponsoToServer(localhostResponse, pathname)
     })
+    .catch(function(error) {
+      function ObjectToArrayBuffer(object) {
+        var json = JSON.stringify(object)
+        var buffer = new ArrayBuffer(json.length)
+        var container = new Uint8Array(buffer)
+        for (var i = 0; i < json.length; i++) {
+          container[i] = json.charCodeAt(i)
+        }
+        return buffer
+      }
+      
+      sendResponsoToServer(
+        {
+          status: 500,
+          headers: serverRequest.headers,
+          data: ObjectToArrayBuffer({ message: '505 Error' })
+        },
+        pathname
+      )
+    })
 }
 
 function makeRequestToLocalhost(req) {

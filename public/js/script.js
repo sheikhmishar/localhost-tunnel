@@ -35,12 +35,30 @@ function validateUsername(username) {
 }
 
 function tunnelLocalhostToServer(serverRequest) {
-  makeRequestToLocalhost(serverRequest).then(sendResponsoToServer)
+  var pathname = serverRequest.url
+  makeRequestToLocalhost(serverRequest)
+    .catch(function(localhostResponseError) {
+      return localhostResponseError.response
+    })
+    .then(function(localhostResponse) {
+      appendLog(
+        localhostResponse.config.method.toUpperCase() +
+          ' ' +
+          localhostResponse.status +
+          ' ' +
+          generateHyperlink(localhostResponse.config.url) +
+          ' -> ' +
+          generateHyperlink(
+            'http://' + serverURL + '/' + usernameInput.value + pathname
+          )
+      )
+      sendResponsoToServer(localhostResponse, pathname)
+    })
 }
 
 function makeRequestToLocalhost(req) {
-  var { method, url: path, headers, data } = req
-  var url = 'http://localhost:' + portInput.value + path
+  var { method, url: pathname, headers, data } = req
+  var url = 'http://localhost:' + portInput.value + pathname
   var requestParameters = {
     // headers, // TODO: fix errors
     withCredentials: true,
@@ -53,41 +71,55 @@ function makeRequestToLocalhost(req) {
     },
     onUploadProgress: function(progressEvent) {
       console.log(
-        method,
-        url,
-        Math.round((progressEvent.loaded * 100) / progressEvent.total),
-        '%'
+        'DOWNLOAD ' +
+          url +
+          ' ' +
+          Math.round((progressEvent.loaded * 100) / progressEvent.total) +
+          ' %'
       ) // TODO: send chunk by chunk response sendResponsoToServer
     },
     onDownloadProgress: function(progressEvent) {
       console.log(
-        method,
-        url,
-        Math.round((progressEvent.loaded * 100) / progressEvent.total),
-        '%'
+        'UPLOAD ' +
+          url +
+          ' ' +
+          Math.round((progressEvent.loaded * 100) / progressEvent.total) +
+          ' %'
       ) // TODO: send chunk by chunk response sendResponsoToServer
     }
   }
   return axios(requestParameters)
 }
 
-function sendResponsoToServer(localhostResponse) {
-  const { headers, data } = localhostResponse
-  socket.emit('response', { headers, data })
+function sendResponsoToServer(localhostResponse, localhostRequestPath) {
+  var status = localhostResponse.status
+  var headers = localhostResponse.headers
+  var data = localhostResponse.data
+  socket.emit(localhostRequestPath, {
+    status: status,
+    headers: headers,
+    data: data
+  })
 }
 
 // UI helper functions
+function generateHyperlink(url) {
+  return (
+    '<a href="' +
+    url +
+    '" target="_blank" class="badge badge-info">' +
+    url +
+    '</a>'
+  )
+}
+
 function refreshTunnelStatus() {
   if (shouldTunnel) {
+    var tunnelUrl = 'http://' + serverURL + '/' + usernameInput.value + '/'
     appendLog('Tunnel is running at port ' + portInput.value)
     appendLog(
-      'Your localhost is now avaiable at ' +
-        'http://' +
-        serverURL +
-        '/' +
-        usernameInput.value +
-        '/'
-    ) // TODO: Add clickable link
+      'Your localhost is now available at ' + generateHyperlink(tunnelUrl)
+    ) // TODO: Permanent
     tunnelToggleButton.innerText = 'Stop tunneling'
   } else {
     appendLog('Tunnel is stopped')
@@ -116,6 +148,9 @@ function validateInputs() {
   else if (port[0] === '0') appendLog('Port cannot start with 0')
   else if (username.length <= 0) appendLog('Username length must be at least 1')
   else if (username.includes('/')) appendLog('Username cannot have /')
+  else if (username.includes('.')) appendLog('Username cannot have .')
+  else if (username.includes('"')) appendLog('Username cannot have "')
+  else if (username.includes("'")) appendLog("Username cannot have '")
   else {
     validateUsername(username).then(function(isValidUsername) {
       if (!isValidUsername) appendLog('Username exists or connection error')
@@ -124,10 +159,10 @@ function validateInputs() {
   }
 }
 
-function appendLog(log) {
+function appendLog(log, type) {
   var newDomElement = document.createElement('h6')
   newDomElement.setAttribute('class', 'text-primary')
-  newDomElement.innerText = log
+  newDomElement.innerHTML = log
   logWrapper.prepend(newDomElement)
 
   if (logWrapper.childElementCount > maxLogLength) logWrapper.lastChild.remove()

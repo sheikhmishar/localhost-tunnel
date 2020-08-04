@@ -6,7 +6,8 @@ var usernameInput = document.querySelector('#username-input'),
 
 // State variables
 var shouldTunnel = false,
-  maxLogLength = 20
+  maxLogLength = 20,
+  streamChunkSize = 1024 * 1024 * 100 / 8 // 100Mb
 
 // Server variables
 var serverURL = location.host // TODO: Will be replaced by deployed server url
@@ -91,14 +92,21 @@ function makeRequestToLocalhost(req) {
           ' %'
       ) // TODO: send chunk by chunk response sendResponsoToServer
     },
-    onDownloadProgress: function(progressEvent) {
-      console.log(
-        'UPLOAD ' +
-          url +
-          ' ' +
-          Math.round((progressEvent.loaded * 100) / progressEvent.total) +
-          ' %'
-      ) // TODO: send chunk by chunk response sendResponsoToServer
+    onDownloadProgress: function(e) {
+      var loaded = e.loaded
+
+      e.target.start = e.target.end ? e.target.end : 0
+      e.target.end = loaded
+
+      var start = e.target.start,
+        end = e.target.end,
+        total = e.total,
+        percent = e.lengthComputable ? Math.round((loaded * 100) / total) : 101
+
+      console.log('UPLOAD', url, start, end, percent, '%')
+      /* TODO: send chunk by chunk response sendResponsoToServer
+              then if success, send 'DONE' to end stream
+      */
     }
   }
   return axios(requestParameters)
@@ -108,10 +116,27 @@ function sendResponsoToServer(localhostResponse, responseId) {
   var status = localhostResponse.status
   var headers = localhostResponse.headers
   var data = localhostResponse.data
+
   socket.emit(responseId, {
     status: status,
-    headers: headers,
-    data: data
+    headers: headers
+  })
+
+  var totalChunks = Math.ceil(data.byteLength / streamChunkSize)
+  var start = 0,
+    end = 0,
+    chunk = new ArrayBuffer(0)
+  for (var i = 0; i < totalChunks; i++) {
+    start = i * streamChunkSize
+    end = start + streamChunkSize
+    chunk = data.slice(start, end)
+
+    socket.emit(responseId, {
+      data: chunk
+    })
+  }
+  socket.emit(responseId, {
+    data: 'DONE'
   })
 }
 
@@ -159,7 +184,8 @@ function toggleTunnel() {
   refreshTunnelStatus()
 }
 
-function validate() {
+function validate(e) {
+  e.preventDefault()
   if (!shouldTunnel) validateInputs()
   else toggleTunnel()
 }

@@ -27,7 +27,7 @@ app.all('/:username/*', (req, res) => {
   const url = req.url.replace(`/${username}`, ''),
     { method, headers, body } = req,
     requestId = uid(),
-    responseId = requestId
+    fileName = parseUrl(url).path === '/' ? 'index.html' : url.split('/').pop() // TODO: get from response
 
   const clientRequest = {
     requestId,
@@ -38,30 +38,38 @@ app.all('/:username/*', (req, res) => {
   }
   clientSocket.emit('request', clientRequest)
 
+  const responseId = requestId
+  let clientResponseLength = 0,
+    clientResponseStatus = 200
   const handleClientResponse = clientResponse => {
-    clientSocket.off(responseId, handleClientResponse)
+    if (clientResponse.data) {
+      const { data } = clientResponse
+      if (typeof data === 'string' && data === 'DONE') {
+        clientSocket.off(responseId, handleClientResponse)
+        // res.set('Content-Length', clientResponseLength.toString()) // TODO: fix content-length
+        res.status(clientResponseStatus)
+        return res.end()
+      }
+      clientResponseLength += Buffer.byteLength(data, 'binary')
+      console.log(
+        method,
+        url,
+        clientResponseLength > 1024 * 1024
+          ? (clientResponseLength / 1024 / 1024).toFixed(2) + 'MB'
+          : (clientResponseLength / 1024).toFixed(2) + 'KB'
+      )
+      return res.write(data)
+    }
 
-    const filename =
-      parseUrl(url).path === '/' ? 'index.html' : url.split('/').pop() // TODO: get from response
-    res.set('Content-disposition', `inline; filename="${filename}"`)
-    res.contentType(clientResponse.headers['content-type'] || 'text/plain')
-    res.set(
-      'Last-Modified',
-      clientResponse.headers['last-modified'] || new Date().toUTCString()
-    )
-    res.set(
-      'Cache-Control',
-      clientResponse.headers['cache-control'] || 'public, max-age=0'
-    )
-    res.set(
-      'Content-Length',
-      Buffer.byteLength(clientResponse.data, 'binary').toString()
-    )
-    res.status(clientResponse.status)
-    const stream = Readable.from(clientResponse.data)
-    stream.pipe(res)
-    stream.on('end', () => stream.destroy())
-    stream.on('error', () => console.log(url, 'stream error'))
+    const { status, headers } = clientResponse
+
+    clientResponseStatus = status
+    res.set({
+      'Content-disposition': `inline; filename="${fileName}"`,
+      'Last-Modified': headers['last-modified'] || new Date().toUTCString(),
+      'Cache-Control': headers['cache-control'] || 'public, max-age=0'
+    })
+    res.contentType(headers['content-type'] || fileName)
   }
   clientSocket.on(responseId, handleClientResponse)
 })
@@ -76,6 +84,27 @@ app.post('/validateusername', (req, res) => {
 app.get('/ping', (req, res) =>
   res.status(200).json({ message: 'Server is alive' })
 )
+
+app.get('/stream', (req, res) => {
+  // TODO: fix not streaming in chunk
+  // res.set({
+  //   'Content-disposition': `inline; filename="stream.txt"`,
+  //   'Last-Modified': new Date().toUTCString(),
+  //   'Cache-Control': 'public, max-age=0'
+  // })
+  res.contentType('text/plain')
+  res.status(200)
+
+  const stream = Readable.from('dsahhjh', { autoDestroy: false })
+  stream.pipe(res)
+
+  setTimeout(() => stream.push('hi'), 1000)
+  setTimeout(() => stream.push('hidsa'), 1000)
+  setTimeout(() => stream.push('hdsai'), 1000)
+  setTimeout(() => stream.push('hidas'), 1000)
+  setTimeout(() => stream.push('hdsi'), 1000)
+  setTimeout(() => res.end(), 6000)
+})
 
 app.use((req, res, next) =>
   res.status(404).json({ message: '404 Invalid Route' })

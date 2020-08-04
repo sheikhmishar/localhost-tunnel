@@ -7,7 +7,8 @@
 3. Very simple to use. Open the web page and type your running server's HTTP port
 4. On screen real time log viewer
 5. All devices are supported including smart phones as long as it has a web browser
-6. Binary data supported
+6. Binary data supported upto 1GB
+7. Partial stream support from server to requester
 
 ## Screenshots:
 
@@ -17,7 +18,7 @@
 
 ## Limitations:
 1. HTTP only, without TCP support
-2. No stream support
+2. No stream support in client side
 3. No form data upload support upto now
 
 ## How to use Locally ( for now ):

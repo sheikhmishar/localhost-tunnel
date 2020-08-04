@@ -1,4 +1,3 @@
-const { Readable } = require('stream')
 const { v1: uid } = require('uuid')
 const parseUrl = require('url').parse
 const express = require('express')
@@ -18,60 +17,56 @@ const findClientSocketByUsername = username =>
     ))
 
 app.all('/:username/*', (req, res) => {
+  // Redirecting all requests from requester to client localhost
   const { username } = req.params
   const clientSocket = findClientSocketByUsername(username)
-
   if (!clientSocket)
     return res.status(404).json({ message: 'Client not available' })
 
-  const url = req.url.replace(`/${username}`, ''),
+  const requestId = uid(),
     { method, headers, body } = req,
-    requestId = uid(),
+    url = req.url.replace(`/${username}`, ''),
     fileName = parseUrl(url).path === '/' ? 'index.html' : url.split('/').pop() // TODO: get from response
 
-  const clientRequest = {
+  const request = {
     requestId,
     url,
     method,
     headers,
     body
   }
-  clientSocket.emit('request', clientRequest)
+  clientSocket.emit('request', request)
 
+  // Redirecting all client localhost responses to requester
   const responseId = requestId
-  let clientResponseLength = 0,
-    clientResponseStatus = 200
-  const handleClientResponse = clientResponse => {
-    if (clientResponse.data) {
-      const { data } = clientResponse
+  let responseLength = 0
+  clientSocket.on(responseId, ({ status, headers, data, dataByteLength }) => {
+    if (data) {
       if (typeof data === 'string' && data === 'DONE') {
-        clientSocket.off(responseId, handleClientResponse)
-        // res.set('Content-Length', clientResponseLength.toString()) // TODO: fix content-length
-        res.status(clientResponseStatus)
+        clientSocket.removeAllListeners(responseId)
         return res.end()
       }
-      clientResponseLength += Buffer.byteLength(data, 'binary')
-      console.log(
+
+      res.write(data)
+      responseLength += Buffer.byteLength(data, 'binary')
+      return console.log(
         method,
         url,
-        clientResponseLength > 1024 * 1024
-          ? (clientResponseLength / 1024 / 1024).toFixed(2) + 'MB'
-          : (clientResponseLength / 1024).toFixed(2) + 'KB'
+        responseLength > 1024 * 1024
+          ? (responseLength / 1024 / 1024).toFixed(2) + 'MB'
+          : (responseLength / 1024).toFixed(2) + 'KB'
       )
-      return res.write(data)
     }
 
-    const { status, headers } = clientResponse
-
-    clientResponseStatus = status
+    res.status(status)
     res.set({
       'Content-disposition': `inline; filename="${fileName}"`,
       'Last-Modified': headers['last-modified'] || new Date().toUTCString(),
-      'Cache-Control': headers['cache-control'] || 'public, max-age=0'
+      'Cache-Control': headers['cache-control'] || 'public, max-age=0',
+      'Content-Length': dataByteLength
     })
     res.contentType(headers['content-type'] || fileName)
-  }
-  clientSocket.on(responseId, handleClientResponse)
+  })
 })
 
 app.post('/validateusername', (req, res) => {
@@ -84,27 +79,6 @@ app.post('/validateusername', (req, res) => {
 app.get('/ping', (req, res) =>
   res.status(200).json({ message: 'Server is alive' })
 )
-
-app.get('/stream', (req, res) => {
-  // TODO: fix not streaming in chunk
-  // res.set({
-  //   'Content-disposition': `inline; filename="stream.txt"`,
-  //   'Last-Modified': new Date().toUTCString(),
-  //   'Cache-Control': 'public, max-age=0'
-  // })
-  res.contentType('text/plain')
-  res.status(200)
-
-  const stream = Readable.from('dsahhjh', { autoDestroy: false })
-  stream.pipe(res)
-
-  setTimeout(() => stream.push('hi'), 1000)
-  setTimeout(() => stream.push('hidsa'), 1000)
-  setTimeout(() => stream.push('hdsai'), 1000)
-  setTimeout(() => stream.push('hidas'), 1000)
-  setTimeout(() => stream.push('hdsi'), 1000)
-  setTimeout(() => res.end(), 6000)
-})
 
 app.use((req, res, next) =>
   res.status(404).json({ message: '404 Invalid Route' })
@@ -121,6 +95,7 @@ const server = app.listen(PORT, () =>
 
 require('socket.io')(server).on('connection', socket => {
   socket.on('username', ({ username }) => {
+    socket.removeAllListeners('username')
     // @ts-ignore
     socket.username = username
     clientSockets.push(socket)

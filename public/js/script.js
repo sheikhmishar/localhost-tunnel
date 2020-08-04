@@ -7,7 +7,7 @@ var usernameInput = document.querySelector('#username-input'),
 // State variables
 var shouldTunnel = false,
   maxLogLength = 20,
-  streamChunkSize = 1024 * 1024 * 100 / 8 // 100Mb
+  streamChunkSize = 1024 * 1024 * 2 // 2MB
 
 // Server variables
 var serverURL = location.host // TODO: Will be replaced by deployed server url
@@ -113,16 +113,19 @@ function makeRequestToLocalhost(req) {
 }
 
 function sendResponsoToServer(localhostResponse, responseId) {
-  var status = localhostResponse.status
-  var headers = localhostResponse.headers
-  var data = localhostResponse.data
+  var status = localhostResponse.status,
+    headers = localhostResponse.headers,
+    data = localhostResponse.data,
+    dataByteLength = data.byteLength
 
   socket.emit(responseId, {
     status: status,
-    headers: headers
+    headers: headers,
+    dataByteLength: dataByteLength
   })
-
-  var totalChunks = Math.ceil(data.byteLength / streamChunkSize)
+  
+  // TODO: write own array and loop based slice method to handle large files
+  var totalChunks = Math.ceil(dataByteLength / streamChunkSize)
   var start = 0,
     end = 0,
     chunk = new ArrayBuffer(0)

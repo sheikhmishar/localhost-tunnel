@@ -10,12 +10,13 @@ var shouldTunnel = false,
   streamChunkSize = 1024 * 1024 * 2 // 2MB
 
 // Server variables
-var serverURL = location.host // TODO: Will be replaced by deployed server url
-var socket
+var serverProtocol = 'http',
+  serverURL = location.host, // TODO: Will be replaced by deployed server url
+  socket
 
 // Helper functions
 function intitiateSocket() {
-  socket = io.connect('ws://' + serverURL)
+  socket = io.connect('ws://' + serverURL + '/tunnel', { path: '/sock' })
   socket.on('connect', function() {
     socket.emit('username', { username: usernameInput.value })
   })
@@ -24,7 +25,7 @@ function intitiateSocket() {
 
 function validateUsername(username) {
   return axios
-    .post('http://' + serverURL + '/validateusername', {
+    .post(serverProtocol + '://' + serverURL + '/validateusername', {
       username: username
     })
     .then(function(res) {
@@ -51,7 +52,12 @@ function tunnelLocalhostToServer(serverRequest) {
           generateHyperlink(localhostResponse.config.url) +
           ' -> ' +
           generateHyperlink(
-            'http://' + serverURL + '/' + usernameInput.value + pathname
+            serverProtocol +
+              '://' +
+              serverURL +
+              '/' +
+              usernameInput.value +
+              pathname
           )
       )
       sendResponseToServer(localhostResponse, responseId)
@@ -70,7 +76,7 @@ function tunnelLocalhostToServer(serverRequest) {
 
 function makeRequestToLocalhost(req) {
   var { method, data } = req,
-    url = 'http://localhost:' + portInput.value + req.url,
+    url = serverProtocol + '://localhost:' + portInput.value + req.url,
     headers = {
       Accept: req.headers['accept'],
       'Accept-Language': req.headers['accept-language']
@@ -123,7 +129,7 @@ function sendResponseToServer(localhostResponse, responseId) {
     headers: headers,
     dataByteLength: dataByteLength
   })
-  
+
   // TODO: write own array and loop based slice method to handle large files
   var totalChunks = Math.ceil(dataByteLength / streamChunkSize)
   var start = 0,
@@ -166,7 +172,8 @@ function generateHyperlink(url) {
 
 function refreshTunnelStatus() {
   if (shouldTunnel) {
-    var tunnelUrl = 'http://' + serverURL + '/' + usernameInput.value + '/'
+    var tunnelUrl =
+      serverProtocol + '://' + serverURL + '/' + usernameInput.value + '/'
     appendLog('Tunnel is running at port ' + portInput.value)
     appendLog(
       'Your localhost is now available at ' + generateHyperlink(tunnelUrl)
@@ -221,5 +228,11 @@ function appendLog(log, type) {
 }
 
 // main
+io.connect('ws://' + serverURL + '/watch', { path: '/sock' }).on(
+  'refresh',
+  function() {
+    location.reload()
+  }
+)
 refreshTunnelStatus()
 tunnelToggleButton.onclick = validate

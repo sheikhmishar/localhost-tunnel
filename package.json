@@ -25,7 +25,7 @@
   "main": "server.js",
   "scripts": {
     "test": "mocha test.js",
-    "watch": "nodemon server.js",
+    "watch": "nodemon -i public",
     "watch:debug": "nodemon -e js,json -x \"node --inspect-brk server.js\""
   },
   "engines": {
@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "express": "^4.17.1",
+    "multer": "^1.4.2",
     "socket.io": "^2.3.0",
     "uuid": "^8.2.0"
   }

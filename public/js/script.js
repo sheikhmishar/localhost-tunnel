@@ -54,10 +54,10 @@ function tunnelLocalhostToServer(serverRequest) {
             'http://' + serverURL + '/' + usernameInput.value + pathname
           )
       )
-      sendResponsoToServer(localhostResponse, responseId)
+      sendResponseToServer(localhostResponse, responseId)
     })
     .catch(function(error) {
-      sendResponsoToServer(
+      sendResponseToServer(
         {
           status: 500,
           headers: serverRequest.headers,
@@ -112,7 +112,7 @@ function makeRequestToLocalhost(req) {
   return axios(requestParameters)
 }
 
-function sendResponsoToServer(localhostResponse, responseId) {
+function sendResponseToServer(localhostResponse, responseId) {
   var status = localhostResponse.status,
     headers = localhostResponse.headers,
     data = localhostResponse.data,

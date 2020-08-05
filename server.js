@@ -44,6 +44,8 @@ app.all('/:username/*', (req, res) => {
     if (data) {
       if (typeof data === 'string' && data === 'DONE') {
         clientSocket.removeAllListeners(responseId)
+        if (res.getHeader('Content-length') !== responseLength.toString())
+          console.log('Content-length mismatch')
         return res.end()
       }
 
@@ -60,7 +62,7 @@ app.all('/:username/*', (req, res) => {
 
     res.status(status)
     res.set({
-      'Content-disposition': `inline; filename="${fileName}"`,
+      'Content-Disposition': `inline; filename="${fileName}"`,
       'Last-Modified': headers['last-modified'] || new Date().toUTCString(),
       'Cache-Control': headers['cache-control'] || 'public, max-age=0',
       'Content-Length': dataByteLength

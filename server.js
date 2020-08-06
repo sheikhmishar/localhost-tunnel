@@ -1,14 +1,41 @@
 const multer = require('multer')().any()
 const express = require('express')
 const app = express()
-const { json, urlencoded, raw, static } = express // TODO: add raw and formdata support
 const { parse: parseUrl } = require('url')
 const { v1: uid } = require('uuid')
-const { watch } = require('fs')
 const { join } = require('path')
+const { watch } = require('fs')
+const { raw, static } = express
 
-app.use(json())
-app.use(urlencoded({ extended: true }))
+const validTextTypes = [
+    'text/plain',
+    'application/json',
+    'application/x-www-form-urlencoded'
+  ],
+  xmlRegex = /^(text\/xml|application\/([\w!#\$%&\*`\-\.\^~]+\+)?xml)$/i
+const isTextRequest = req => {
+  const contentType = req.get('Content-Type')
+  if (xmlRegex.test(contentType)) return true
+  for (let i = 0; i < validTextTypes.length; i++)
+    if (req.is(validTextTypes[i])) return true
+  return false
+}
+const textParser = (req, res, next) => {
+  if (isTextRequest(req)) {
+    let chunks = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => (chunks += chunk)) // TODO: big text via stream
+    req.on('end', () => {
+      req.body = chunks // TODO: attach noting to body
+      next()
+    })
+    req.on('error', err => next(err))
+  }
+  else next()
+}
+
+app.use(raw())
+app.use(textParser)
 app.use(multer)
 const publicDir = join(__dirname, 'public')
 app.use(static(publicDir))
@@ -20,9 +47,7 @@ let clientSockets = []
 const findClientSocketByUsername = username =>
     clientSockets.find(socket => socket.username === username),
   removeClientSocket = clientSocket =>
-    (clientSockets = clientSockets.filter(
-      socket => socket.id !== clientSocket.id
-    ))
+    (clientSockets = clientSockets.filter(({ id }) => id !== clientSocket.id))
 
 const handleTunneling = (req, res) => {
   // Redirecting all requests from requester to client localhost
@@ -40,7 +65,7 @@ const handleTunneling = (req, res) => {
     requestId,
     url,
     method,
-    headers,
+    headers, // get content-type for form data, xml, urlencoded on client side
     body
   }
   clientSocket.emit('request', request)
@@ -87,6 +112,15 @@ const validateUsername = (req, res) => {
   else res.status(200).json({ isValidUsername: true })
 }
 app.post('/validateusername', validateUsername)
+
+app.post('/upload', (req, res) => {
+  if (req.is('multipart/form-data')) {
+    const { body, files } = req
+    if (Object.keys(body).length) log('form data', body)
+    if (files) files.map(file => log(file))
+  } else log(req.body)
+  res.sendStatus(200)
+})
 
 app.get('/ping', (req, res) =>
   res.status(200).json({ message: 'Server is alive' })

@@ -23,6 +23,55 @@ function intitiateSocket() {
   socket.on('request', tunnelLocalhostToServer)
 }
 
+var forbiddenHeaders = [
+    'accept-charset',
+    'accept-encoding',
+    'access-control-request-headers',
+    'access-control-request-method',
+    'connection',
+    'content-length',
+    'cookie',
+    'cookie2',
+    'date',
+    'dnt',
+    'expect',
+    'feature-policy',
+    'host',
+    'keep-alive',
+    'origin',
+    'referer',
+    'te',
+    'trailer',
+    'transfer-encoding',
+    'upgrade',
+    'via'
+  ],
+  forbiddenHeadersSubstrings = ['proxy-', 'sec-']
+
+function sanitizeHeaders(headers) {
+  if (typeof headers != 'object') return {}
+
+  var headersToRemove = []
+  var headerKeys = Object.keys(headers)
+  for (var i = 0; i < headerKeys.length; i++) {
+    var currentKey = headerKeys[i],
+      currentKeyLowerCase = headerKeys[i].toLowerCase()
+
+    for (var j = 0; j < forbiddenHeaders.length; j++)
+      if (currentKeyLowerCase === forbiddenHeaders[j])
+        headersToRemove.push(currentKey)
+
+    for (var j = 0; j < forbiddenHeadersSubstrings.length; j++)
+      if (currentKeyLowerCase.includes(forbiddenHeadersSubstrings[j]))
+        headersToRemove.push(currentKey)
+  }
+
+  for (var i = 0; i < headersToRemove.length; i++)
+    delete headers[headersToRemove[i]]
+
+  return headers
+}
+
 function validateUsername(username) {
   return axios
     .post(serverProtocol + '://' + serverURL + '/validateusername', {
@@ -75,18 +124,17 @@ function tunnelLocalhostToServer(serverRequest) {
 }
 
 function makeRequestToLocalhost(req) {
-  var { method, data } = req,
-    url = serverProtocol + '://localhost:' + portInput.value + req.url,
-    headers = {
-      Accept: req.headers['accept'],
-      'Accept-Language': req.headers['accept-language']
-    }
+  var url = serverProtocol + '://localhost:' + portInput.value + req.url
 
   var requestParameters = {
-    headers,
-    method,
-    url,
-    data,
+    // headers: {
+    //   Accept: req.headers['accept'],
+    //   'Accept-Language': req.headers['accept-language']
+    // }
+    headers: sanitizeHeaders(req.headers),
+    method: req.method,
+    url: url,
+    data: req.data,
     withCredentials: true,
     responseType: 'arraybuffer',
     onUploadProgress: function(progressEvent) {

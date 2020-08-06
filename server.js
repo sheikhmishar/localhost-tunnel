@@ -65,8 +65,8 @@ const handleTunneling = (req, res) => {
     requestId,
     url,
     method,
-    headers, // get content-type for form data, xml, urlencoded on client side
-    body
+    headers, // TODO: get content-type for form data, xml, urlencoded on client side
+    body // TODO: stream
   }
   clientSocket.emit('request', request)
 

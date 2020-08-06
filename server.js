@@ -30,8 +30,7 @@ const textParser = (req, res, next) => {
       next()
     })
     req.on('error', err => next(err))
-  }
-  else next()
+  } else next()
 }
 
 app.use(raw())
@@ -42,6 +41,17 @@ app.use(static(publicDir))
 
 const log = (...args) =>
   process.env.NODE_ENV !== 'production' ? true && console.log(...args) : false
+
+const KB = 1024,
+  MB = KB * KB,
+  GB = MB * KB
+// human friendly byte string
+const hfBytes = bytes => {
+  if (bytes > GB) return `${(bytes / GB).toFixed(2)} GB`
+  else if (bytes > MB) return `${(bytes / MB).toFixed(2)} MB`
+  else if (bytes > KB) return `${(bytes / KB).toFixed(2)} KB`
+  return `${bytes.toFixed(2)} B`
+}
 
 let clientSockets = []
 const findClientSocketByUsername = username =>
@@ -56,17 +66,19 @@ const handleTunneling = (req, res) => {
   if (!clientSocket)
     return res.status(404).json({ message: 'Client not available' })
 
-  const requestId = uid(),
+  const { files = [] } = req,
+    requestId = uid(),
     { method, headers, body } = req,
     url = req.url.replace(`/${username}`, ''),
-    fileName = parseUrl(url).path === '/' ? 'index.html' : url.split('/').pop() // TODO: get from response
+    fileName = parseUrl(url).path === '/' ? 'index.html' : url.split('/').pop()
 
   const request = {
     requestId,
     url,
     method,
-    headers, // TODO: get content-type for form data, xml, urlencoded on client side
-    body // TODO: stream
+    headers,
+    body, // TODO: stream
+    files // TODO: stream
   }
   clientSocket.emit('request', request)
 
@@ -84,13 +96,7 @@ const handleTunneling = (req, res) => {
 
       res.write(data)
       responseLength += Buffer.byteLength(data, 'binary')
-      return log(
-        method,
-        url,
-        responseLength > 1024 * 1024
-          ? (responseLength / 1024 / 1024).toFixed(2) + 'MB'
-          : (responseLength / 1024).toFixed(2) + 'KB'
-      )
+      return log(method, url, hfBytes(responseLength))
     }
 
     res.status(status)
@@ -98,8 +104,9 @@ const handleTunneling = (req, res) => {
       'Content-Disposition': `inline; filename="${fileName}"`,
       'Last-Modified': headers['last-modified'] || new Date().toUTCString(),
       'Cache-Control': headers['cache-control'] || 'public, max-age=0',
-      'Content-Length': dataByteLength
-    })
+      'Content-Length': headers['content-length'] || dataByteLength,
+      Etag: headers['etag']
+    }) // TODO: {...headers}
     res.contentType(headers['content-type'] || fileName)
   })
 }
@@ -112,15 +119,6 @@ const validateUsername = (req, res) => {
   else res.status(200).json({ isValidUsername: true })
 }
 app.post('/validateusername', validateUsername)
-
-app.post('/upload', (req, res) => {
-  if (req.is('multipart/form-data')) {
-    const { body, files } = req
-    if (Object.keys(body).length) log('form data', body)
-    if (files) files.map(file => log(file))
-  } else log(req.body)
-  res.sendStatus(200)
-})
 
 app.get('/ping', (req, res) =>
   res.status(200).json({ message: 'Server is alive' })

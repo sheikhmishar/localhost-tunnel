@@ -1,8 +1,8 @@
 // HTML elements
-var usernameInput = document.querySelector('#username-input'),
-  portInput = document.querySelector('#port-input'),
-  tunnelToggleButton = document.querySelector('#tunnel-toggle-button'),
-  logWrapper = document.querySelector('.log-wrapper')
+var usernameInput = document.getElementById('username-input'),
+  portInput = document.getElementById('port-input'),
+  tunnelToggleButton = document.getElementById('tunnel-toggle-button'),
+  logWrapper = document.getElementsByClassName('log-wrapper')[0]
 
 // State variables
 var shouldTunnel = false,
@@ -24,6 +24,7 @@ function intitiateSocket() {
 }
 
 var forbiddenHeaders = [
+    // TODO: recheck
     'accept-charset',
     'accept-encoding',
     'access-control-request-headers',
@@ -44,11 +45,13 @@ var forbiddenHeaders = [
     'trailer',
     'transfer-encoding',
     'upgrade',
+    'user-agent',
     'via'
   ],
   forbiddenHeadersSubstrings = ['proxy-', 'sec-']
 
 function sanitizeHeaders(headers) {
+  // TODO: capitalize
   if (typeof headers != 'object') return {}
 
   var headersToRemove = []
@@ -80,9 +83,86 @@ function validateUsername(username) {
     .then(function(res) {
       return res.data.isValidUsername
     })
-    .catch(function(err) {
+    .catch(function() {
       return false
     })
+}
+
+function containsFormdata(headers) {
+  return (
+    (headers['content-type'] &&
+      headers['content-type'].includes('multipart/form-data')) ||
+    (headers['Content-Type'] &&
+      headers['Content-Type'].includes('multipart/form-data'))
+  )
+}
+
+function currentProgress(e) {
+  var loaded = e.loaded
+
+  e.target.start = e.target.end ? e.target.end : 0
+  e.target.end = loaded
+
+  var start = e.target.start,
+    end = e.target.end,
+    total = e.total,
+    percent = e.lengthComputable ? Math.round((loaded * 100) / total) : 101
+
+  return { start: start, end: end, percent: percent }
+}
+
+function makeRequestToLocalhost(req) {
+  var url = serverProtocol + '://localhost:' + portInput.value + req.url
+  var headers = sanitizeHeaders(req.headers)
+
+  var data
+  if (containsFormdata(headers)) {
+    var fieldNames = Object.keys(req.body)
+    var fieldName, file, mime, fileName
+
+    data = new FormData()
+    for (let i = 0; i < fieldNames.length; i++) {
+      fieldName = fieldNames[i]
+      data.append(fieldName, req.body[fieldName])
+    }
+
+    for (let i = 0; i < req.files.length; i++) {
+      file = req.files[i]
+      fieldName = file.fieldname
+      mime = file.mimetype
+      fileName = file.originalname
+      data.append(fieldName, new Blob([file.buffer], { type: mime }), fileName)
+    }
+  } else data = req.body
+
+  var requestParameters = {
+    headers: headers,
+    method: req.method,
+    url: url,
+    data: data,
+    withCredentials: true,
+    responseType: 'arraybuffer',
+    onUploadProgress: function(e) {
+      var progress = currentProgress(e),
+        start = progress.start,
+        end = progress.end,
+        percent = progress.percent
+
+      console.log('DOWNLOAD', url, start, end, percent, '%')
+    },
+    onDownloadProgress: function(e) {
+      var progress = currentProgress(e),
+        start = progress.start,
+        end = progress.end,
+        percent = progress.percent
+
+      console.log('UPLOAD', url, start, end, percent, '%')
+      /* TODO: send chunk by chunk response sendResponsoToServer
+              then if success, send 'DONE' to end stream
+      */
+    }
+  }
+  return axios(requestParameters)
 }
 
 function tunnelLocalhostToServer(serverRequest) {
@@ -121,49 +201,6 @@ function tunnelLocalhostToServer(serverRequest) {
         responseId
       )
     })
-}
-
-function makeRequestToLocalhost(req) {
-  var url = serverProtocol + '://localhost:' + portInput.value + req.url
-
-  var requestParameters = {
-    // headers: {
-    //   Accept: req.headers['accept'],
-    //   'Accept-Language': req.headers['accept-language']
-    // }
-    headers: sanitizeHeaders(req.headers),
-    method: req.method,
-    url: url,
-    data: req.data,
-    withCredentials: true,
-    responseType: 'arraybuffer',
-    onUploadProgress: function(progressEvent) {
-      console.log(
-        'DOWNLOAD ' +
-          url +
-          ' ' +
-          Math.round((progressEvent.loaded * 100) / progressEvent.total) +
-          ' %'
-      ) // TODO: send chunk by chunk response sendResponsoToServer
-    },
-    onDownloadProgress: function(e) {
-      var loaded = e.loaded
-
-      e.target.start = e.target.end ? e.target.end : 0
-      e.target.end = loaded
-
-      var start = e.target.start,
-        end = e.target.end,
-        total = e.total,
-        percent = e.lengthComputable ? Math.round((loaded * 100) / total) : 101
-
-      console.log('UPLOAD', url, start, end, percent, '%')
-      /* TODO: send chunk by chunk response sendResponsoToServer
-              then if success, send 'DONE' to end stream
-      */
-    }
-  }
-  return axios(requestParameters)
 }
 
 function sendResponseToServer(localhostResponse, responseId) {
@@ -242,16 +279,18 @@ function toggleTunnel() {
   refreshTunnelStatus()
 }
 
-function validate(e) {
+function onButtonClick(e) {
   e.preventDefault()
-  if (!shouldTunnel) validateInputs()
-  else toggleTunnel()
+
+  if (shouldTunnel) toggleTunnel()
+  else validateInputsAndToggleTunnel()
 }
 
-function validateInputs() {
+function validateInputsAndToggleTunnel() {
   var port = portInput.value,
     username = usernameInput.value
-  if (port.length < 2) appendLog('Port length must be at least 2')
+  if (port.length < 2)
+    appendLog('Port must contain 2 digits minimum and number only')
   else if (port[0] === '0') appendLog('Port cannot start with 0')
   else if (username.length <= 0) appendLog('Username length must be at least 1')
   else if (username.includes('/')) appendLog('Username cannot have /')
@@ -259,14 +298,14 @@ function validateInputs() {
   else if (username.includes('"')) appendLog('Username cannot have "')
   else if (username.includes("'")) appendLog("Username cannot have '")
   else {
-    validateUsername(username).then(function(isValidUsername) {
-      if (!isValidUsername) appendLog('Username exists or connection error')
-      else toggleTunnel()
+    return validateUsername(username).then(function(isValidUsername) {
+      if (isValidUsername) toggleTunnel()
+      else appendLog('Username exists or connection error')
     })
   }
 }
 
-function appendLog(log, type) {
+function appendLog(log) {
   var newDomElement = document.createElement('h6')
   newDomElement.setAttribute('class', 'text-primary')
   newDomElement.innerHTML = log
@@ -276,11 +315,12 @@ function appendLog(log, type) {
 }
 
 // main
-io.connect('ws://' + serverURL + '/watch', { path: '/sock' }).on(
-  'refresh',
-  function() {
-    location.reload()
-  }
-)
+if (location.origin + '/' === location.href)
+  io.connect('ws://' + serverURL + '/watch', { path: '/sock' }).on(
+    'refresh',
+    function() {
+      location.reload()
+    }
+  )
 refreshTunnelStatus()
-tunnelToggleButton.onclick = validate
+tunnelToggleButton.addEventListener('click', onButtonClick)

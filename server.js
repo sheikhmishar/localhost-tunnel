@@ -4,14 +4,7 @@ const app = express()
 const log = process.env.NODE_ENV !== 'production' ? console.log : () => true
 
 const { is } = require('type-is')
-const validTextTypes = [
-  'text/*',
-  'json',
-  'xml',
-  'application/*+json',
-  'application/*+xml',
-  'urlencoded'
-]
+const { validTextTypes } = require('./helpers')
 const textParser = (req, res, next) => {
   if (
     Object.keys(req.body).length ||
@@ -77,28 +70,19 @@ const formDataParser = (req, res, next) => {
   req.pipe(busboy)
 }
 
-const publicDir = require('path').join(__dirname, 'public')
+const publicDir = require('path').join(__dirname, 'views')
 const { raw, static } = express
 app.use(static(publicDir))
 app.use(raw())
 
-const KB = 1024,
-  MB = KB * KB,
-  GB = MB * KB
-// human friendly byte string
-const byteToString = bytes => {
-  if (bytes > GB) return `${(bytes / GB).toFixed(2)} GB`
-  else if (bytes > MB) return `${(bytes / MB).toFixed(2)} MB`
-  else if (bytes > KB) return `${(bytes / KB).toFixed(2)} KB`
-  return `${bytes} B`
-}
+const {
+  getClientSocketCount,
+  findClientSocketByUsername,
+  addClientSocket,
+  removeClientSocket
+} = require('./models/ClientSocket')
 
-let clientSockets = []
-const findClientSocketByUsername = username =>
-    clientSockets.find(socket => socket.username === username),
-  removeClientSocket = clientSocket =>
-    (clientSockets = clientSockets.filter(({ id }) => id !== clientSocket.id))
-
+const { byteToString } = require('./helpers')
 const { parse: parseUrl } = require('url')
 const { v1: uid } = require('uuid')
 const handleTunneling = (req, res) => {
@@ -154,28 +138,33 @@ const handleTunneling = (req, res) => {
 }
 app.all('/:username/*', textParser, formDataParser, handleTunneling)
 
+app.get('/ping', (req, res) =>
+  res.status(200).json({ message: 'Server is alive' })
+)
+
+const { json } = express
 const validateUsername = (req, res) => {
   const { username } = req.body
   if (findClientSocketByUsername(username))
     res.status(400).json({ isValidUsername: false })
   else res.status(200).json({ isValidUsername: true })
 }
-app.post('/validateusername', validateUsername)
-
-app.get('/ping', (req, res) =>
-  res.status(200).json({ message: 'Server is alive' })
-)
+app.post('/validateusername', json(), validateUsername)
 
 // test loopback route
-const { json } = express,
-  urlencoded = express.urlencoded({ extended: true }),
+const urlencoded = express.urlencoded({ extended: true }),
   multer = require('multer')().any()
 app.all('/tunneltest', json(), urlencoded, multer, textParser, (req, res) => {
   req.on('data', chunk => log('req not parsed yet\n', chunk))
 
   const { body, files } = req
+  Object.keys(body).forEach(
+    key =>
+      (body[key] =
+        body[key].length > 125 ? body[key].slice(0, 125) + ' ...' : '')
+  )
   log('----------------\nbody\n----------------\n', body)
-  if (files.length) log('----------------\nfiles\n----------------\n', files)
+  if (files) log('----------------\nfiles\n----------------\n', files)
   res.sendStatus(200)
 })
 
@@ -200,16 +189,16 @@ const onNewClientConnection = socket => {
   socket.on('username', ({ username }) => {
     socket.removeAllListeners('username')
     socket.username = username
-    clientSockets.push(socket)
-    log(`Joined ${socket.id} ${username} Total users: ${clientSockets.length}`)
+    addClientSocket(socket)
+    const clientSocketCount = getClientSocketCount()
+    log(`Joined ${socket.id} ${username} Total users: ${clientSocketCount}`)
   })
   socket.on('disconnect', () => {
-    removeClientSocket(socket)
+    removeClientSocket(socket.id)
     socket.removeAllListeners()
     socket.disconnect(true)
-    log(
-      `Left ${socket.id} ${socket.username} Total users: ${clientSockets.length}`
-    )
+    const socketCount = getClientSocketCount()
+    log(`Left ${socket.id} ${socket.username} Total users: ${socketCount}`)
   })
 }
 io.of('/tunnel').on('connection', onNewClientConnection)

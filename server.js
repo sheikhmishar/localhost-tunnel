@@ -1,6 +1,8 @@
 const express = require('express')
 const app = express()
 
+const log = process.env.NODE_ENV !== 'production' ? console.log : () => true
+
 const { is } = require('type-is')
 const validTextTypes = [
   'text/*',
@@ -11,45 +13,74 @@ const validTextTypes = [
   'urlencoded'
 ]
 const textParser = (req, res, next) => {
-  const contentType = req.get('Content-Type')
-  if (is(contentType, validTextTypes)) {
-    let chunks = ''
-    req.setEncoding('utf8')
-    req.on('data', chunk => (chunks += chunk)) // TODO: big text via stream
-    req.on('end', () => {
-      req.body = chunks // TODO: attach noting to body
-      next()
-    })
-    req.on('error', err => next(err))
-  } else next()
+  if (
+    Object.keys(req.body).length ||
+    !is(req.get('Content-Type'), validTextTypes)
+  )
+    return next()
+
+  let chunks = ''
+  req.setEncoding('utf8')
+  req.on('data', chunk => (chunks += chunk)) // TODO: big text via stream
+  req.on('end', () => {
+    req.body = chunks // TODO: attach nothing to body, instead stream
+    next()
+  })
+  req.on('error', error => next(error))
 }
 
-const busboy = require('busboy')
+const Busboy = require('busboy')
+const concatStream = require('concat-stream')
 const formDataParser = (req, res, next) => {
-  const contentType = req.get('Content-Type')
-  if (is(contentType, ['multipart'])) {
-    // busboy()//
-    // let chunks = ''
-    // req.setEncoding('utf8')
-    // req.on('data', chunk => (chunks += chunk)) // TODO: big text via stream
-    // req.on('end', () => {
-    //   req.body = chunks // TODO: attach noting to body
-    //   next() // TODO: drain req stream
-    // })
-    // req.on('error', err => next(err))
+  // TODO: handle content type ; boundary not set next()
+  if (!is(req.get('Content-Type'), ['multipart'])) return next()
+
+  const files = []
+  const busboy = new Busboy({ headers: req.headers })
+  busboy.on('error', error => next(error))
+  busboy.on('field', (fieldname, value) => (req.body[fieldname] = value))
+  busboy.on('file', (fieldname, fstream, filename, encoding, mimetype) => {
+    if (!filename) return fstream.resume()
+
+    const file = {
+      fieldname,
+      originalname: filename, // TODO: filename
+      encoding,
+      mimetype
+    }
+
+    // TODO: remove and directly stream
+    const buffer = concatStream({ encoding: 'buffer' }, concatedBuffer => {
+      fstream.unpipe(buffer)
+      file.buffer = concatedBuffer
+      file.size = concatedBuffer.length
+      files.push(file)
+    })
+    fstream.pipe(buffer)
+
+    fstream.on('data', data => log('fstream', filename, data.length, 'B'))
+    fstream.on('end', () => true)
+    fstream.on('error', error => next(error))
+  })
+  busboy.on('finish', () => {
+    req.unpipe(busboy)
+    busboy.removeAllListeners()
+
+    req.files = files
+
+    req.on('data', chunk => log('drain', chunk))
+    req.on('end', () => log('drain end'))
+    // req.on('readable', req.read.bind(req)) // TODO: possibly drain
+
     next()
-  } else next()
+  })
+  req.pipe(busboy)
 }
 
 const publicDir = require('path').join(__dirname, 'public')
-const multer = require('multer')
 const { raw, static } = express
 app.use(static(publicDir))
-app.use(multer().any()) // TODO: remove
 app.use(raw())
-
-const log = (...args) =>
-  process.env.NODE_ENV !== 'production' ? true && console.log(...args) : false
 
 const KB = 1024,
   MB = KB * KB,
@@ -121,7 +152,7 @@ const handleTunneling = (req, res) => {
     res.contentType(headers['content-type'] || fileName)
   })
 }
-app.all('/:username/*', textParser, /* formDataParser*/ handleTunneling) // TODO: formDataParser
+app.all('/:username/*', textParser, formDataParser, handleTunneling)
 
 const validateUsername = (req, res) => {
   const { username } = req.body
@@ -136,15 +167,15 @@ app.get('/ping', (req, res) =>
 )
 
 // test loopback route
-const { json, text } = express,
-  urlencoded = express.urlencoded({ extended: true })
-/* TODO: add multer */
-app.all('/tunneltest', json(), text(), urlencoded, (req, res) => {
-  req.on('data', chunk => log('chunk', chunk))
+const { json } = express,
+  urlencoded = express.urlencoded({ extended: true }),
+  multer = require('multer')().any()
+app.all('/tunneltest', json(), urlencoded, multer, textParser, (req, res) => {
+  req.on('data', chunk => log('req not parsed yet\n', chunk))
 
   const { body, files } = req
   log('----------------\nbody\n----------------\n', body)
-  if (files) log('----------------\nfiles\n----------------\n', files)
+  if (files.length) log('----------------\nfiles\n----------------\n', files)
   res.sendStatus(200)
 })
 

@@ -176,7 +176,7 @@ function tunnelLocalhostToServer(serverRequest) {
       appendLog(
         localhostResponse.config.method.toUpperCase() +
           ' ' +
-          localhostResponse.status +
+          localhostResponse.status + // TODO: fix 304
           ' ' +
           generateHyperlink(localhostResponse.config.url) +
           ' -> ' +

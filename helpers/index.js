@@ -18,4 +18,6 @@ const validTextTypes = [
   'urlencoded'
 ]
 
-module.exports = { byteToString, validTextTypes }
+const log = process.env.NODE_ENV !== 'production' ? console.log : () => true
+
+module.exports = { byteToString, validTextTypes, log }

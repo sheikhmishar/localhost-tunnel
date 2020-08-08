@@ -181,7 +181,7 @@ function tunnelLocalhostToServer(serverRequest) {
       )
       sendResponseToServer(localhostResponse, responseId)
     })
-    .catch(function(error) {
+    .catch(function() {
       sendResponseToServer(
         {
           status: 500,
@@ -303,7 +303,7 @@ function validateInputsThen(callback) {
   else if (username.includes('"')) appendLog('Username cannot have "')
   else if (username.includes("'")) appendLog("Username cannot have '")
   else {
-    return validateUsername(username).then(function(isValidUsername) {
+    validateUsername(username).then(function(isValidUsername) {
       if (isValidUsername) callback()
       else appendLog('Username exists or connection error')
     })

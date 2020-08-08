@@ -17,9 +17,9 @@
 
 ## Screenshots:
 
-![SS1](./screenshots/omran-desktop-heroku.png?raw=true "Desktop Version Hosted on Heroku")
+![SS1](./views/screenshots/omran-desktop-heroku.png?raw=true "Desktop Version Hosted on Heroku")
 
-![SS2](./screenshots/screenshot-chrome-local.png?raw=true "Desktop Version MD Hosted on Localhost")
+![SS2](./views/screenshots/screenshot-chrome-local.png?raw=true "Desktop Version MD Hosted on Localhost")
 
 ## Limitations:
 1. HTTP only, without TCP support

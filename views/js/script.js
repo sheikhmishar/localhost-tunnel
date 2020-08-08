@@ -18,7 +18,7 @@ var serverProtocol = 'http',
 function intitiateSocket() {
   socket = io.connect('ws://' + serverURL + '/tunnel', { path: '/sock' })
   socket.on('connect', function() {
-    socket.emit('username', { username: usernameInput.value })
+    socket.emit('username', usernameInput.value)
   })
   socket.on('request', tunnelLocalhostToServer)
 }
@@ -97,7 +97,7 @@ function containsFormdata(headers) {
   )
 }
 
-function currentProgress(e) {
+function printCurrentProgress(e, url) {
   var loaded = e.loaded
 
   e.target.start = e.target.end ? e.target.end : 0
@@ -106,9 +106,12 @@ function currentProgress(e) {
   var start = e.target.start,
     end = e.target.end,
     total = e.total,
-    percent = e.lengthComputable ? Math.round((loaded * 100) / total) : 101
+    percent = e.lengthComputable ? Math.round((loaded * 100) / total) : 101,
+    type = e.target.responseURL ? 'UPLOAD' : 'DOWNLOAD'
 
-  return { start: start, end: end, percent: percent }
+  console.log(type, url, start, end, percent, '%')
+  /* TODO: get chunked response using fetch API.
+      Then if success, send 'DONE' to end stream via socket */
 }
 
 function makeRequestToLocalhost(req) {
@@ -143,23 +146,10 @@ function makeRequestToLocalhost(req) {
     withCredentials: true,
     responseType: 'arraybuffer',
     onUploadProgress: function(e) {
-      var progress = currentProgress(e),
-        start = progress.start,
-        end = progress.end,
-        percent = progress.percent
-
-      console.log('DOWNLOAD', url, start, end, percent, '%')
+      printCurrentProgress(e, url)
     },
     onDownloadProgress: function(e) {
-      var progress = currentProgress(e),
-        start = progress.start,
-        end = progress.end,
-        percent = progress.percent
-
-      console.log('UPLOAD', url, start, end, percent, '%')
-      /* TODO: send chunk by chunk response sendResponsoToServer
-              then if success, send 'DONE' to end stream
-      */
+      printCurrentProgress(e, url)
     }
   }
   return axios(requestParameters)
@@ -175,8 +165,8 @@ function tunnelLocalhostToServer(serverRequest) {
     .then(function(localhostResponse) {
       appendLog(
         localhostResponse.config.method.toUpperCase() +
-        ' ' +
-        localhostResponse.status + // TODO: fix 304
+          ' ' +
+          localhostResponse.status +
           ' ' +
           generateHyperlink(localhostResponse.config.url) +
           ' -> ' +
@@ -238,9 +228,8 @@ function ObjectToArrayBuffer(object) {
   var json = JSON.stringify(object)
   var buffer = new ArrayBuffer(json.length)
   var container = new Uint8Array(buffer)
-  for (var i = 0; i < json.length; i++) {
-    container[i] = json.charCodeAt(i)
-  }
+  for (var i = 0; i < json.length; i++) container[i] = json.charCodeAt(i)
+
   return buffer
 }
 
@@ -262,12 +251,22 @@ function refreshTunnelStatus() {
     appendLog('Tunnel is running at port ' + portInput.value)
     appendLog(
       'Your localhost is now available at ' + generateHyperlink(tunnelUrl)
-    ) // TODO: Permanent
+    ) // TODO: Permanently view current tunnel address
     tunnelToggleButton.innerText = 'Stop tunneling'
   } else {
     appendLog('Tunnel is stopped')
     tunnelToggleButton.innerText = 'Start tunneling'
   }
+}
+
+function disableInputs() {
+  usernameInput.setAttribute('disabled', 'true')
+  portInput.setAttribute('disabled', 'true')
+}
+
+function enableInputs() {
+  usernameInput.removeAttribute('disabled')
+  portInput.removeAttribute('disabled')
 }
 
 function toggleTunnel() {
@@ -282,11 +281,17 @@ function toggleTunnel() {
 function onButtonClick(e) {
   e.preventDefault()
 
-  if (shouldTunnel) toggleTunnel()
-  else validateInputsAndToggleTunnel()
+  if (shouldTunnel) {
+    toggleTunnel()
+    enableInputs()
+  } else
+    validateInputsThen(function() {
+      toggleTunnel()
+      disableInputs()
+    })
 }
 
-function validateInputsAndToggleTunnel() {
+function validateInputsThen(callback) {
   var port = portInput.value,
     username = usernameInput.value
   if (port.length < 2)
@@ -299,7 +304,7 @@ function validateInputsAndToggleTunnel() {
   else if (username.includes("'")) appendLog("Username cannot have '")
   else {
     return validateUsername(username).then(function(isValidUsername) {
-      if (isValidUsername) toggleTunnel()
+      if (isValidUsername) callback()
       else appendLog('Username exists or connection error')
     })
   }
@@ -315,15 +320,16 @@ function appendLog(log) {
 }
 
 // main
-if (
-  location.hostname === 'localhost' &&
-  location.origin + '/' === location.href
-)
+refreshTunnelStatus()
+tunnelToggleButton.addEventListener('click', onButtonClick)
+
+var isLocalhostRoot =
+  location.hostname === 'localhost' && location.origin + '/' === location.href
+// if currently in localhost root, refresh page on file change
+if (isLocalhostRoot)
   io.connect('ws://' + serverURL + '/watch', { path: '/sock' }).on(
     'refresh',
     function() {
       location.reload()
     }
   )
-refreshTunnelStatus()
-tunnelToggleButton.addEventListener('click', onButtonClick)

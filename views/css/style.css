@@ -81,6 +81,10 @@ a.navbar-brand:hover {
   color: var(--color-primary);
 }
 
+.form-control:disabled {
+  background-color: #e9ecef66;
+}
+
 .log-terminal {
   height: 200px;
   font-family: 'Fira Code', monospace;

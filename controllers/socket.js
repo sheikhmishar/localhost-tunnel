@@ -26,10 +26,13 @@ const onWatchSocketConnection = socket => log('visited', socket.client.id)
 
 const setupSocket = (io, viewsDir) => {
   io.of('/tunnel').on('connection', onNewSocketConnection)
-  io.of('/watch').on('connection', onWatchSocketConnection)
-  require('fs').watch(viewsDir, { recursive: true }, () =>
-    io.of('/watch').emit('refresh')
-  )
+  
+  if (process.env.NODE_ENV !== 'production') {
+    io.of('/watch').on('connection', onWatchSocketConnection)
+    require('fs').watch(viewsDir, { recursive: true }, () =>
+      io.of('/watch').emit('refresh')
+    )
+  }
 }
 
 module.exports = { setupSocket }

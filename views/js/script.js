@@ -175,8 +175,8 @@ function tunnelLocalhostToServer(serverRequest) {
     .then(function(localhostResponse) {
       appendLog(
         localhostResponse.config.method.toUpperCase() +
-          ' ' +
-          localhostResponse.status + // TODO: fix 304
+        ' ' +
+        localhostResponse.status + // TODO: fix 304
           ' ' +
           generateHyperlink(localhostResponse.config.url) +
           ' -> ' +
@@ -315,7 +315,10 @@ function appendLog(log) {
 }
 
 // main
-if (location.origin + '/' === location.href)
+if (
+  location.hostname === 'localhost' &&
+  location.origin + '/' === location.href
+)
   io.connect('ws://' + serverURL + '/watch', { path: '/sock' }).on(
     'refresh',
     function() {

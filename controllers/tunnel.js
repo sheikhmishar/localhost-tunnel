@@ -27,10 +27,11 @@ const handleTunneling = (req, res) => {
     url,
     method,
     headers,
-    body, // TODO: stream
-    files // TODO: stream
+    body // TODO: stream
   }
   clientSocket.emit('request', request)
+  files.forEach(file => clientSocket.emit(requestId, file))
+  clientSocket.emit(requestId, { data: 'DONE' })
 
   // Redirecting all client localhost responses to requester
   const responseId = requestId
@@ -67,7 +68,7 @@ const testTunnel = (req, res) => {
   const { body, files } = req
   Object.keys(body).forEach(key => {
     const value = body[key]
-    if (value.length > 125) body[key] = value.slice(0, 125)
+    if (value.length > 125) body[key] = `${value.slice(0, 125)} --->`
   })
   log('----------------\nbody\n----------------\n', body)
   if (files) log('----------------\nfiles\n----------------\n', files)

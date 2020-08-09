@@ -20,7 +20,7 @@ function intitiateSocket() {
   socket.on('connect', function() {
     socket.emit('username', usernameInput.value)
   })
-  socket.on('request', tunnelLocalhostToServer)
+  socket.on('request', onServerRequest)
 }
 
 var forbiddenHeaders = [
@@ -114,29 +114,38 @@ function printCurrentProgress(e, url) {
       Then if success, send 'DONE' to end stream via socket */
 }
 
+function onServerRequest(serverRequest) {
+  var requestId = serverRequest.requestId
+
+  var receivedFiles = []
+  // , i = 0
+  socket.on(requestId, function(file) {
+    if (typeof file.data === 'string' && file.data === 'DONE') {
+      socket.removeAllListeners(requestId)
+      serverRequest.files = receivedFiles
+      // i++
+
+      return tunnelLocalhostToServer(serverRequest)
+    }
+
+    receivedFiles.push(file)
+
+    // TODO: chunk push
+    // if (file.buffer) appendBuffer(receivedFiles[i].buffer, file.buffer)
+    // else {
+    //   receivedFiles[i] = file
+    //   receivedFiles[i].buffer = new ArrayBuffer(file.size)
+    // }
+  })
+}
+
 function makeRequestToLocalhost(req) {
   var url = serverProtocol + '://localhost:' + portInput.value + req.url
   var headers = sanitizeHeaders(req.headers)
 
   var data
-  if (containsFormdata(headers)) {
-    var fieldNames = Object.keys(req.body)
-    var fieldName, file, mime, fileName
-
-    data = new FormData()
-    for (let i = 0; i < fieldNames.length; i++) {
-      fieldName = fieldNames[i]
-      data.append(fieldName, req.body[fieldName])
-    }
-
-    for (let i = 0; i < req.files.length; i++) {
-      file = req.files[i]
-      fieldName = file.fieldname
-      mime = file.mimetype
-      fileName = file.originalname
-      data.append(fieldName, new Blob([file.buffer], { type: mime }), fileName)
-    }
-  } else data = req.body
+  if (containsFormdata(headers)) data = getFormdata(req)
+  else data = req.body
 
   var requestParameters = {
     headers: headers,
@@ -186,7 +195,7 @@ function tunnelLocalhostToServer(serverRequest) {
         {
           status: 500,
           headers: serverRequest.headers,
-          data: ObjectToArrayBuffer({ message: '505 Error' })
+          data: objectToArrayBuffer({ message: '505 Error' })
         },
         responseId
       )
@@ -224,11 +233,32 @@ function sendResponseToServer(localhostResponse, responseId) {
   })
 }
 
-function ObjectToArrayBuffer(object) {
+function getFormdata(req) {
+  var fieldNames = Object.keys(req.body)
+  var fieldName, file, mime, fileName
+
+  var data = new FormData()
+  for (let i = 0; i < fieldNames.length; i++) {
+    fieldName = fieldNames[i]
+    data.append(fieldName, req.body[fieldName])
+  }
+
+  for (let i = 0; i < req.files.length; i++) {
+    file = req.files[i]
+    fieldName = file.fieldname
+    mime = file.mimetype
+    fileName = file.originalname
+    data.append(fieldName, new Blob([file.buffer], { type: mime }), fileName)
+  }
+
+  return data
+}
+
+function objectToArrayBuffer(object) {
   var json = JSON.stringify(object)
   var buffer = new ArrayBuffer(json.length)
-  var container = new Uint8Array(buffer)
-  for (var i = 0; i < json.length; i++) container[i] = json.charCodeAt(i)
+  var bufferView = new Uint8Array(buffer)
+  for (var i = 0; i < json.length; i++) bufferView[i] = json.charCodeAt(i)
 
   return buffer
 }
@@ -320,16 +350,18 @@ function appendLog(log) {
 }
 
 // main
-refreshTunnelStatus()
-tunnelToggleButton.addEventListener('click', onButtonClick)
+window.addEventListener('load', function() {
+  refreshTunnelStatus()
+  tunnelToggleButton.addEventListener('click', onButtonClick)
 
-var isLocalhostRoot =
-  location.hostname === 'localhost' && location.origin + '/' === location.href
-// if currently in localhost root, refresh page on file change
-if (isLocalhostRoot)
-  io.connect('ws://' + serverURL + '/watch', { path: '/sock' }).on(
-    'refresh',
-    function() {
-      location.reload()
-    }
-  )
+  var isLocalhostRoot =
+    location.hostname === 'localhost' && location.origin + '/' === location.href
+  // if currently in localhost root, refresh page on file change
+  if (isLocalhostRoot)
+    io.connect('ws://' + serverURL + '/watch', { path: '/sock' }).on(
+      'refresh',
+      function() {
+        location.reload
+      }
+    )
+})

@@ -6,6 +6,8 @@ const Busboy = require('busboy')
 const formDataParser = (req, res, next) => {
   if (!is(req.get('Content-Type'), ['multipart'])) return next()
 
+  req.body = req.body || {}
+
   const files = []
   const busboy = new Busboy({ headers: req.headers })
   busboy.on('error', error => next(error))

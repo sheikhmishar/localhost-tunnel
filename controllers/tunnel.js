@@ -65,11 +65,10 @@ const testTunnel = (req, res) => {
   req.on('data', chunk => log('req not parsed yet\n', chunk))
 
   const { body, files } = req
-  Object.keys(body).forEach(
-    key =>
-      (body[key] =
-        body[key].length > 125 ? body[key].slice(0, 125) + ' ...' : '')
-  )
+  Object.keys(body).forEach(key => {
+    const value = body[key]
+    if (value.length > 125) body[key] = value.slice(0, 125)
+  })
   log('----------------\nbody\n----------------\n', body)
   if (files) log('----------------\nfiles\n----------------\n', files)
   res.sendStatus(200)

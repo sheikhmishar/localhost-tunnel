@@ -6,5 +6,6 @@
 	"html.format.extraLiners": null,
 	"editor.tabSize": 2,
 	"html.format.indentInnerHtml": false,
-	"html.format.preserveNewLines": false
+	"html.format.preserveNewLines": false,
+	"prettier.quoteProps": "consistent"
 }

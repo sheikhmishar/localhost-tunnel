@@ -14,17 +14,18 @@ const handleTunneling = (req, res) => {
   const { username } = req.params
   const clientSocket = findClientSocketByUsername(username)
   if (!clientSocket)
-    return res.status(404).json({ message: 'Client not available' })
+    return res.status(404).json({ message: 'Client not available' }) // TODO: 404 html
 
   const { files = [] } = req,
     requestId = uid(),
     { method, headers, body } = req,
-    url = req.url.replace(`/${username}`, ''),
-    fileName = parseUrl(url).path === '/' ? 'index.html' : url.split('/').pop()
+    path = req.url.replace(`/${username}`, ''),
+    fileName =
+      parseUrl(path).path === '/' ? 'index.html' : path.split('/').pop()
 
   const request = {
     requestId,
-    url,
+    path,
     method,
     headers,
     body // TODO: stream
@@ -47,7 +48,7 @@ const handleTunneling = (req, res) => {
 
       res.write(data)
       responseLength += Buffer.byteLength(data, 'binary')
-      return log(method, url, byteToString(responseLength))
+      return log(method, `${username}${path}`, byteToString(responseLength))
     }
 
     res.status(status)
@@ -56,7 +57,7 @@ const handleTunneling = (req, res) => {
       'Last-Modified': headers['last-modified'] || new Date().toUTCString(),
       'Cache-Control': headers['cache-control'] || 'public, max-age=0',
       'Content-Length': headers['content-length'] || dataByteLength,
-      Etag: headers['etag']
+      'Etag': headers['etag']
     }) // TODO: {...headers}
     res.contentType(headers['content-type'] || fileName)
   })

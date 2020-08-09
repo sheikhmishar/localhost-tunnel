@@ -20,7 +20,7 @@ function intitiateSocket() {
   socket.on('connect', function() {
     socket.emit('username', usernameInput.value)
   })
-  socket.on('request', onServerRequest)
+  socket.on('request', preprocessRequest)
 }
 
 var forbiddenHeaders = [
@@ -114,14 +114,14 @@ function printCurrentProgress(e, url) {
       Then if success, send 'DONE' to end stream via socket */
 }
 
-function onServerRequest(serverRequest) {
-  var requestId = serverRequest.requestId
+function preprocessRequest(serverRequest) {
+  var formadataId = serverRequest.requestId
 
   var receivedFiles = []
   // , i = 0
-  socket.on(requestId, function(file) {
+  socket.on(formadataId, function(file) {
     if (typeof file.data === 'string' && file.data === 'DONE') {
-      socket.removeAllListeners(requestId)
+      socket.removeAllListeners(formadataId)
       serverRequest.files = receivedFiles
       // i++
 
@@ -140,7 +140,7 @@ function onServerRequest(serverRequest) {
 }
 
 function makeRequestToLocalhost(req) {
-  var url = serverProtocol + '://localhost:' + portInput.value + req.url
+  var url = serverProtocol + '://localhost:' + portInput.value + req.path
   var headers = sanitizeHeaders(req.headers)
 
   var data
@@ -165,7 +165,7 @@ function makeRequestToLocalhost(req) {
 }
 
 function tunnelLocalhostToServer(serverRequest) {
-  var pathname = serverRequest.url,
+  var path = serverRequest.path,
     responseId = serverRequest.requestId
   makeRequestToLocalhost(serverRequest)
     .catch(function(localhostResponseError) {
@@ -185,7 +185,7 @@ function tunnelLocalhostToServer(serverRequest) {
               serverURL +
               '/' +
               usernameInput.value +
-              pathname
+              path
           )
       )
       sendResponseToServer(localhostResponse, responseId)
@@ -195,7 +195,7 @@ function tunnelLocalhostToServer(serverRequest) {
         {
           status: 500,
           headers: serverRequest.headers,
-          data: objectToArrayBuffer({ message: '505 Error' })
+          data: objectToArrayBuffer({ message: '505 Client Error' })
         },
         responseId
       )

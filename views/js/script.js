@@ -231,6 +231,26 @@ function sendResponseToServer(localhostResponse, responseId) {
   socket.emit(responseId, {
     data: 'DONE'
   })
+
+  // Static delayed transfer
+  // var i = 0
+  // var interval = setInterval(function() {
+  //   start = i * streamChunkSize
+  //   end = start + streamChunkSize
+  //   chunk = data.slice(start, end)
+
+  //   socket.emit(responseId, {
+  //     data: chunk
+  //   })
+
+  //   i++
+  //   if (i === totalChunks) {
+  //     socket.emit(responseId, {
+  //       data: 'DONE'
+  //     })
+  //     clearInterval(interval)
+  //   }
+  // }, 1000)
 }
 
 function getFormdata(req) {
@@ -361,7 +381,7 @@ window.addEventListener('load', function() {
     io.connect('ws://' + serverURL + '/watch', { path: '/sock' }).on(
       'refresh',
       function() {
-        location.reload
+        location.reload()
       }
     )
 })

@@ -120,7 +120,7 @@ function preprocessRequest(serverRequest) {
   var receivedFiles = []
   // , i = 0
   socket.on(formadataId, function(file) {
-    if (typeof file.data === 'string' && file.data === 'DONE') {
+    if (file.data && file.data === 'DONE') {
       socket.removeAllListeners(formadataId)
       serverRequest.files = receivedFiles
       // i++
@@ -130,7 +130,7 @@ function preprocessRequest(serverRequest) {
 
     receivedFiles.push(file)
 
-    // TODO: chunk push
+    // TODO: chunk push and add acknowledgement delay
     // if (file.buffer) appendBuffer(receivedFiles[i].buffer, file.buffer)
     // else {
     //   receivedFiles[i] = file
@@ -214,7 +214,7 @@ function sendResponseToServer(localhostResponse, responseId) {
     dataByteLength: dataByteLength
   })
 
-  // TODO: write own array and loop based slice method to handle large files
+  // TODO: receive acknowledgement signal before sending next chunk
   var totalChunks = Math.ceil(dataByteLength / streamChunkSize)
   var start = 0,
     end = 0,

@@ -25,6 +25,7 @@
 1. HTTP only, without TCP support
 2. No stream support in client side
 3. Client browser struggles to handle more than 1.5GB files
+3. React router not supported unless recompiled using tunnel url
 
 ## How to use Locally ( for now ):
 1. Open terminal in the project directory and type:

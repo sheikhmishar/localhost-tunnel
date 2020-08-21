@@ -7,7 +7,7 @@
 3. Very simple to use. Open the web page and type your running server's HTTP port
 4. On screen real time log viewer
 5. All devices are supported including smart phones as long as it has a web browser
-6. Binary data supported upto 1.5GB
+6. Binary data supported with no content-size limit as long as your RAM permits
 7. Partial stream support from server to requester
 8. Full multi part form data upload support
 9. Content type json, plain text, xml, markdown, urlencoded fully supported
@@ -24,8 +24,8 @@
 ## Limitations:
 1. HTTP only, without TCP support
 2. No stream support in client side
-3. Client browser struggles to handle more than 1.5GB files
-3. React router not supported unless recompiled using tunnel url
+3. Max content-size is limited to your RAM size
+4. React-router works only if app is built using "url": "<tunnel-url>" in package.json
 
 ## How to use Locally ( for now ):
 1. Open terminal in the project directory and type:
@@ -46,4 +46,5 @@ npm i && npm start
 
 ### A demo has been hosted at http://localhost-tunnel.herokuapp.com/
 
-### All credit goes to: [Omran Jamal](https://github.com/omranjamal)
+### Tons of credits go to: [Omran Jamal](https://github.com/omranjamal)
+### Whole project was his idea

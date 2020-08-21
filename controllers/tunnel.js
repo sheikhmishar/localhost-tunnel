@@ -45,6 +45,7 @@ const handleTunneling = (req, res) => {
       }
 
       res.write(data)
+      // TODO: wait until data buffer is sent to requester or the stream is empty
       clientSocket.emit(requestId) // continue sending data
 
       if (process.env.NODE_ENV !== 'production')

@@ -37,7 +37,7 @@ const handleTunneling = (req, res) => {
   // Redirecting all client localhost responses to requester
   const responseId = requestId
   let responseLength = 0
-  clientSocket.on(responseId, ({ status, headers, data, dataByteLength }) => {
+  const onClientSocketResponse = ({ status, headers, data, dataByteLength }) => {
     if (data) {
       if (typeof data === 'string' && data === 'DONE') {
         clientSocket.removeAllListeners(responseId)
@@ -63,7 +63,8 @@ const handleTunneling = (req, res) => {
     }) // TODO: {...headers}
     res.contentType(headers['content-type'] || fileName)
     clientSocket.emit(requestId) // continue sending data
-  })
+  }
+  clientSocket.on(responseId, onClientSocketResponse)
 }
 
 const testTunnel = (req, res) => {

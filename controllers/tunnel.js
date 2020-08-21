@@ -1,7 +1,7 @@
 const { findClientSocketByUsername } = require('../models/ClientSocket')
 const { byteToString, log } = require('../helpers')
-const { parse: parseUrl } = require('url')
-const { v1: uid } = require('uuid')
+const parseUrl = require('url').parse
+const uid = require('uuid').v1
 
 const validateUsername = (req, res) => {
   if (findClientSocketByUsername(req.body.username))
@@ -41,13 +41,14 @@ const handleTunneling = (req, res) => {
     if (data) {
       if (typeof data === 'string' && data === 'DONE') {
         clientSocket.removeAllListeners(responseId)
-        if (res.get('Content-length') !== responseLength.toString())
-          log('Content-length mismatch')
         return res.end()
       }
 
       res.write(data)
-      responseLength += Buffer.byteLength(data, 'binary')
+      clientSocket.emit(requestId) // continue sending data
+
+      if (process.env.NODE_ENV !== 'production')
+        responseLength += Buffer.byteLength(data, 'binary')
       return log(method, `${username}${path}`, byteToString(responseLength))
     }
 
@@ -60,6 +61,7 @@ const handleTunneling = (req, res) => {
       'Etag': headers['etag']
     }) // TODO: {...headers}
     res.contentType(headers['content-type'] || fileName)
+    clientSocket.emit(requestId) // continue sending data
   })
 }
 

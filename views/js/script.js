@@ -214,12 +214,22 @@ function sendResponseToServer(localhostResponse, responseId) {
     dataByteLength: dataByteLength
   })
 
-  // TODO: receive acknowledgement signal before sending next chunk
   var totalChunks = Math.ceil(dataByteLength / streamChunkSize)
-  var start = 0,
-    end = 0,
-    chunk = new ArrayBuffer(0)
-  for (var i = 0; i < totalChunks; i++) {
+  var start,
+    end,
+    chunk,
+    i = 0
+
+  // TODO: on ('CONTINUE.id')
+  socket.on(responseId, sendChunkedResponse)
+  function sendChunkedResponse() {
+    if (i === totalChunks) {
+      socket.emit(responseId, {
+        data: 'DONE'
+      })
+      return socket.removeAllListeners(responseId)
+    }
+
     start = i * streamChunkSize
     end = start + streamChunkSize
     chunk = data.slice(start, end)
@@ -227,30 +237,9 @@ function sendResponseToServer(localhostResponse, responseId) {
     socket.emit(responseId, {
       data: chunk
     })
+
+    i++
   }
-  socket.emit(responseId, {
-    data: 'DONE'
-  })
-
-  // Static delayed transfer
-  // var i = 0
-  // var interval = setInterval(function() {
-  //   start = i * streamChunkSize
-  //   end = start + streamChunkSize
-  //   chunk = data.slice(start, end)
-
-  //   socket.emit(responseId, {
-  //     data: chunk
-  //   })
-
-  //   i++
-  //   if (i === totalChunks) {
-  //     socket.emit(responseId, {
-  //       data: 'DONE'
-  //     })
-  //     clearInterval(interval)
-  //   }
-  // }, 1000)
 }
 
 function getFormdata(req) {

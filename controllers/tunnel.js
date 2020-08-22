@@ -37,22 +37,29 @@ const handleTunneling = (req, res) => {
   // Redirecting all client localhost responses to requester
   const responseId = requestId
   let responseLength = 0
-  const onClientSocketResponse = ({ status, headers, data, dataByteLength }) => {
+  const continueReceivingData = () => clientSocket.emit(responseId)
+
+  const onClientSocketResponse = clientSocketResponse => {
+    const { status, headers, data, dataByteLength } = clientSocketResponse
+
     if (data) {
+      // Stop receiving data
       if (typeof data === 'string' && data === 'DONE') {
         clientSocket.removeAllListeners(responseId)
         return res.end()
       }
 
-      res.write(data)
-      // TODO: wait until data buffer is sent to requester or the stream is empty
-      clientSocket.emit(requestId) // continue sending data
+      // Continue receiving data if data buffer is not full
+      // Else pause until data buffer is drained
+      if (res.write(data)) continueReceivingData()
+      else res.on('drain', continueReceivingData)
 
       if (process.env.NODE_ENV !== 'production')
         responseLength += Buffer.byteLength(data, 'binary')
       return log(method, `${username}${path}`, byteToString(responseLength))
     }
 
+    // Set headers from status, headers, dataByteLength
     res.status(status)
     res.set({
       'Content-Disposition': `inline; filename="${fileName}"`,
@@ -62,7 +69,7 @@ const handleTunneling = (req, res) => {
       'Etag': headers['etag']
     }) // TODO: {...headers}
     res.contentType(headers['content-type'] || fileName)
-    clientSocket.emit(requestId) // continue sending data
+    continueReceivingData()
   }
   clientSocket.on(responseId, onClientSocketResponse)
 }

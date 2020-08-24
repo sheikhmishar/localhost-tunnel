@@ -25,7 +25,10 @@
 1. HTTP only, without TCP support
 2. No stream support in client side
 3. Max content-size is limited to your RAM size
-4. React-router works only if app is built using "url": "<tunnel-url>" in package.json
+4. React-router works only if app is built using "url": "\<tunnel-url\>" in package.json
+5. CORS(Cross Origin Resource Sharing) must be enabled on the client localhost server
+6. Redirect hasn't been implemented yet
+7. Relative paths must be used for resources
 
 ## How to use Locally ( for now ):
 1. Open terminal in the project directory and type:

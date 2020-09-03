@@ -8,11 +8,23 @@ const formDataParser = (req, res, next) => {
 
   req.body = req.body || {}
 
-  const files = []
+  req.files = []
   const busboy = new Busboy({ headers: req.headers })
-  busboy.on('error', error => next(error))
-  busboy.on('field', (fieldname, value) => (req.body[fieldname] = value))
-  busboy.on('file', (fieldname, fstream, filename, encoding, mimetype) => {
+
+  const drainAll = error => {
+    req.unpipe(busboy)
+    busboy.removeAllListeners()
+
+    req.files = error ? [] : req.files
+
+    req.on('data', chunk => log('drain', chunk))
+    req.on('end', () => log('drain end'))
+    req.on('readable', req.read.bind(req))
+
+    next(error)
+  }
+
+  const onFile = (fieldname, fstream, filename, encoding, mimetype) => {
     if (!filename) return fstream.resume()
 
     const file = {
@@ -27,26 +39,21 @@ const formDataParser = (req, res, next) => {
       fstream.unpipe(buffer)
       file.buffer = concatedBuffer
       file.size = concatedBuffer.length
-      files.push(file)
+      req.files.push(file)
     })
     fstream.pipe(buffer)
 
     fstream.on('data', data => log('fstream', filename, data.length, 'B'))
-    fstream.on('end', () => true)
-    fstream.on('error', error => next(error))
-  })
-  busboy.on('finish', () => {
-    req.unpipe(busboy)
-    busboy.removeAllListeners()
+    fstream.on('end', () => log('fstream', filename, 'DONE'))
+    fstream.on('error', drainAll)
+  }
 
-    req.files = files
+  const onField = (fieldname, value) => (req.body[fieldname] = value)
 
-    req.on('data', chunk => log('drain', chunk))
-    req.on('end', () => log('drain end'))
-    // req.on('readable', req.read.bind(req)) // TODO: possibly drain
-
-    next()
-  })
+  busboy.on('error', drainAll)
+  busboy.on('field', onField)
+  busboy.on('file', onFile)
+  busboy.on('finish', drainAll)
   req.pipe(busboy)
 }
 

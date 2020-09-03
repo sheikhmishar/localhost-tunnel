@@ -17,25 +17,27 @@ const handleTunneling = (req, res) => {
     return res.status(404).json({ message: 'Client not available' }) // TODO: 404 html
 
   const { files = [] } = req,
-    requestId = uid(),
+    unique_id = uid(),
+    requestId = unique_id, // TODO: `REQUEST.${unique_id}`
     { method, headers, body } = req,
     path = req.url.replace(`/${username}`, ''),
     fileName =
       parseUrl(path).path === '/' ? 'index.html' : path.split('/').pop()
 
   const request = {
-    requestId,
+    requestId, // TODO: unique_id
     path,
     method,
     headers,
     body // TODO: stream
   }
   clientSocket.emit('request', request)
-  files.forEach(file => clientSocket.emit(requestId, file))
+  // TODO: event
+  files.forEach(file => clientSocket.emit(requestId, file)) // TODO: stream
   clientSocket.emit(requestId, { data: 'DONE' })
 
   // Redirecting all client localhost responses to requester
-  const responseId = requestId
+  const responseId = requestId // TODO: `RESPONSE.${unique_id}`
   let responseLength = 0
   const continueReceivingData = () => clientSocket.emit(responseId)
 
@@ -43,8 +45,8 @@ const handleTunneling = (req, res) => {
     const { status, headers, data, dataByteLength } = clientSocketResponse
 
     if (data) {
-      // Stop receiving data
       if (typeof data === 'string' && data === 'DONE') {
+        // All data received. Stop receiving more
         clientSocket.removeAllListeners(responseId)
         return res.end()
       }
@@ -54,9 +56,11 @@ const handleTunneling = (req, res) => {
       if (res.write(data)) continueReceivingData()
       else res.on('drain', continueReceivingData)
 
-      if (process.env.NODE_ENV !== 'production')
+      if (process.env.NODE_ENV !== 'production') {
         responseLength += Buffer.byteLength(data, 'binary')
-      return log(method, `${username}${path}`, byteToString(responseLength))
+        log(method, `${username}${path}`, byteToString(responseLength))
+      }
+      return
     }
 
     // Set headers from status, headers, dataByteLength

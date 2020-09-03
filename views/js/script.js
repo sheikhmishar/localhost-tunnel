@@ -1,3 +1,5 @@
+// TODO: write in modern ES6 and transpile via babel
+
 // HTML elements
 var usernameInput = document.getElementById('username-input'),
   portInput = document.getElementById('port-input'),

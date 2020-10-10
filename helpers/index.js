@@ -20,4 +20,56 @@ const validTextTypes = [
 
 const log = process.env.NODE_ENV !== 'production' ? console.log : () => true
 
-module.exports = { byteToString, validTextTypes, log }
+const forbiddenHeaders = [
+    // TODO: recheck
+    'accept-charset',
+    'accept-encoding',
+    'access-control-request-headers',
+    'access-control-request-method',
+    'connection',
+    'content-length',
+    'cookie',
+    'cookie2',
+    'date',
+    'dnt',
+    'expect',
+    'feature-policy',
+    'host',
+    'keep-alive',
+    'origin',
+    'referer',
+    'te',
+    'trailer',
+    'transfer-encoding',
+    'upgrade',
+    'user-agent',
+    'via'
+  ],
+  forbiddenHeadersSubstrings = ['proxy-', 'sec-']
+
+/** @param {IncomingHttpHeaders} headers */
+const sanitizeHeaders = headers => {
+  if (typeof headers != 'object') return {}
+
+  var headersToRemove = []
+  var headerKeys = Object.keys(headers)
+  for (var i = 0; i < headerKeys.length; i++) {
+    var currentKey = headerKeys[i],
+      currentKeyLowerCase = headerKeys[i].toLowerCase()
+
+    for (var j = 0; j < forbiddenHeaders.length; j++)
+      if (currentKeyLowerCase === forbiddenHeaders[j])
+        headersToRemove.push(currentKey)
+
+    for (var j = 0; j < forbiddenHeadersSubstrings.length; j++)
+      if (currentKeyLowerCase.includes(forbiddenHeadersSubstrings[j]))
+        headersToRemove.push(currentKey)
+  }
+
+  for (var i = 0; i < headersToRemove.length; i++)
+    delete headers[headersToRemove[i]]
+
+  return headers
+}
+
+module.exports = { byteToString, validTextTypes, log, sanitizeHeaders }

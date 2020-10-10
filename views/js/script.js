@@ -1,10 +1,11 @@
 // TODO: write in modern ES6 and transpile via babel
-
 // HTML elements
-var usernameInput = document.getElementById('username-input'),
-  portInput = document.getElementById('port-input'),
-  tunnelToggleButton = document.getElementById('tunnel-toggle-button'),
-  logWrapper = document.getElementsByClassName('log-wrapper')[0]
+var dummy = document.createElement('div')
+
+var usernameInput = document.getElementById('username-input') || dummy,
+  portInput = document.getElementById('port-input') || dummy,
+  tunnelToggleButton = document.getElementById('tunnel-toggle-button') || dummy,
+  logWrapper = document.getElementsByClassName('log-wrapper')[0] || dummy
 
 // State variables
 var shouldTunnel = false,
@@ -12,74 +13,30 @@ var shouldTunnel = false,
   streamChunkSize = 1024 * 1024 * 2 // 2MB
 
 // Server variables
-var serverProtocol = 'http',
-  serverURL = location.host, // TODO: Will be replaced by deployed server url
-  socket
+var serverProtocol = location.protocol || 'http:',
+  socketProtocol = serverProtocol === 'http:' ? 'ws:' : 'wss:',
+  serverURL = location.host // TODO: Will be replaced by deployed server url
+
+/** @type {SocketIOClient.Socket} */
+var socket
 
 // Helper functions
 function intitiateSocket() {
-  socket = io.connect('ws://' + serverURL + '/tunnel', { path: '/sock' })
+  socket = io.connect(socketProtocol + '//' + serverURL + '/tunnel', {
+    path: '/sock'
+  })
   socket.on('connect', function() {
     socket.emit('username', usernameInput.value)
   })
   socket.on('request', preprocessRequest)
 }
 
-var forbiddenHeaders = [
-    // TODO: recheck
-    'accept-charset',
-    'accept-encoding',
-    'access-control-request-headers',
-    'access-control-request-method',
-    'connection',
-    'content-length',
-    'cookie',
-    'cookie2',
-    'date',
-    'dnt',
-    'expect',
-    'feature-policy',
-    'host',
-    'keep-alive',
-    'origin',
-    'referer',
-    'te',
-    'trailer',
-    'transfer-encoding',
-    'upgrade',
-    'user-agent',
-    'via'
-  ],
-  forbiddenHeadersSubstrings = ['proxy-', 'sec-']
 
-function sanitizeHeaders(headers) {
-  // TODO: capitalize
-  if (typeof headers != 'object') return {}
 
-  var headersToRemove = []
-  var headerKeys = Object.keys(headers)
-  for (var i = 0; i < headerKeys.length; i++) {
-    var currentKey = headerKeys[i],
-      currentKeyLowerCase = headerKeys[i].toLowerCase()
-
-    for (var j = 0; j < forbiddenHeaders.length; j++)
-      if (currentKeyLowerCase === forbiddenHeaders[j])
-        headersToRemove.push(currentKey)
-
-    for (var j = 0; j < forbiddenHeadersSubstrings.length; j++)
-      if (currentKeyLowerCase.includes(forbiddenHeadersSubstrings[j]))
-        headersToRemove.push(currentKey)
-  }
-
-  for (var i = 0; i < headersToRemove.length; i++)
-    delete headers[headersToRemove[i]]
-
-  return headers
-}
-
+/** @param {string} username */
 function validateUsername(username) {
   return axios
-    .post(serverProtocol + '://' + serverURL + '/validateusername', {
+    .post(serverProtocol + '//' + serverURL + '/validateusername', {
       username: username
     })
     .then(function(res) {
@@ -90,6 +47,7 @@ function validateUsername(username) {
     })
 }
 
+/** @param {IncomingHttpHeaders} headers */
 function containsFormdata(headers) {
   return (
     (headers['content-type'] &&
@@ -99,6 +57,10 @@ function containsFormdata(headers) {
   )
 }
 
+/**
+ * @param {Axios.ProgressEvent} e
+ * @param {string} url
+ */
 function printCurrentProgress(e, url) {
   var loaded = e.loaded
 
@@ -116,12 +78,17 @@ function printCurrentProgress(e, url) {
       Then if success, send 'DONE' to end stream via socket */
 }
 
+/** @param {LocalhostTunnel.ClientRequest} serverRequest */
 function preprocessRequest(serverRequest) {
   var formadataId = serverRequest.requestId
+  socket.on(formadataId, socketOnFileReceived)
 
+  /** @type {Express.Multer.File[]} */
   var receivedFiles = []
   // , i = 0
-  socket.on(formadataId, function(file) {
+
+  /** @param {Express.Multer.File} file */
+  function socketOnFileReceived(file) {
     if (file.data && file.data === 'DONE') {
       socket.removeAllListeners(formadataId)
       serverRequest.files = receivedFiles
@@ -138,19 +105,21 @@ function preprocessRequest(serverRequest) {
     //   receivedFiles[i] = file
     //   receivedFiles[i].buffer = new ArrayBuffer(file.size)
     // }
-  })
+  }
 }
 
+/** @param {LocalhostTunnel.ClientRequest} req */
 function makeRequestToLocalhost(req) {
-  var url = serverProtocol + '://localhost:' + portInput.value + req.path
-  var headers = sanitizeHeaders(req.headers)
+  var url = serverProtocol + '//localhost:' + portInput.value + req.path
 
+  /** @type {Axios.data} */
   var data
-  if (containsFormdata(headers)) data = getFormdata(req)
+  if (containsFormdata(req.headers)) data = getFormdata(req)
   else data = req.body
 
+  /** @type {Axios.RequestConfig} */
   var requestParameters = {
-    headers: headers,
+    headers: req.headers, // TODO: check range
     method: req.method,
     url: url,
     data: data,
@@ -166,10 +135,11 @@ function makeRequestToLocalhost(req) {
   return axios(requestParameters)
 }
 
-function tunnelLocalhostToServer(serverRequest) {
-  var path = serverRequest.path,
-    responseId = serverRequest.requestId
-  makeRequestToLocalhost(serverRequest)
+/** @param {LocalhostTunnel.ClientRequest} clientRequest */
+function tunnelLocalhostToServer(clientRequest) {
+  var path = clientRequest.path,
+    responseId = clientRequest.requestId
+  return makeRequestToLocalhost(clientRequest)
     .catch(function(localhostResponseError) {
       return localhostResponseError.response
     })
@@ -182,12 +152,7 @@ function tunnelLocalhostToServer(serverRequest) {
           generateHyperlink(localhostResponse.config.url) +
           ' -> ' +
           generateHyperlink(
-            serverProtocol +
-              '://' +
-              serverURL +
-              '/' +
-              usernameInput.value +
-              path
+            serverProtocol + '//' + serverURL + '/' + usernameInput.value + path
           )
       )
       sendResponseToServer(localhostResponse, responseId)
@@ -196,7 +161,7 @@ function tunnelLocalhostToServer(serverRequest) {
       sendResponseToServer(
         {
           status: 500,
-          headers: serverRequest.headers,
+          headers: clientRequest.headers,
           data: objectToArrayBuffer({ message: '505 Client Error' })
         },
         responseId
@@ -204,6 +169,10 @@ function tunnelLocalhostToServer(serverRequest) {
     })
 }
 
+/**
+ * @param {LocalhostTunnel.LocalhostResponse} localhostResponse
+ * @param {string} responseId
+ */
 function sendResponseToServer(localhostResponse, responseId) {
   var status = localhostResponse.status,
     headers = localhostResponse.headers,
@@ -244,6 +213,7 @@ function sendResponseToServer(localhostResponse, responseId) {
   }
 }
 
+/** @param {LocalhostTunnel.ClientRequest} req */
 function getFormdata(req) {
   var fieldNames = Object.keys(req.body)
   var fieldName, file, mime, fileName
@@ -265,6 +235,7 @@ function getFormdata(req) {
   return data
 }
 
+/** @param {Object<string, object>} object */
 function objectToArrayBuffer(object) {
   var json = JSON.stringify(object)
   var buffer = new ArrayBuffer(json.length)
@@ -275,6 +246,7 @@ function objectToArrayBuffer(object) {
 }
 
 // UI helper functions
+/** @param {string} url */
 function generateHyperlink(url) {
   return (
     '<a href="' +
@@ -288,7 +260,7 @@ function generateHyperlink(url) {
 function refreshTunnelStatus() {
   if (shouldTunnel) {
     var tunnelUrl =
-      serverProtocol + '://' + serverURL + '/' + usernameInput.value + '/'
+      serverProtocol + '//' + serverURL + '/' + usernameInput.value + '/'
     appendLog('Tunnel is running at port ' + portInput.value)
     appendLog(
       'Your localhost is now available at ' + generateHyperlink(tunnelUrl)
@@ -319,6 +291,7 @@ function toggleTunnel() {
   refreshTunnelStatus()
 }
 
+/** @param {Event} e */
 function onButtonClick(e) {
   e.preventDefault()
 
@@ -332,6 +305,7 @@ function onButtonClick(e) {
     })
 }
 
+/** @param {function(): void} callback */
 function validateInputsThen(callback) {
   var port = portInput.value,
     username = usernameInput.value
@@ -351,6 +325,7 @@ function validateInputsThen(callback) {
   }
 }
 
+/** @param {string} log */
 function appendLog(log) {
   var newDomElement = document.createElement('h6')
   newDomElement.setAttribute('class', 'text-primary')
@@ -369,10 +344,9 @@ window.addEventListener('load', function() {
     location.hostname === 'localhost' && location.origin + '/' === location.href
   // if currently in localhost root, refresh page on file change
   if (isLocalhostRoot)
-    io.connect('ws://' + serverURL + '/watch', { path: '/sock' }).on(
-      'refresh',
-      function() {
-        location.reload()
-      }
-    )
+    io.connect(socketProtocol + '//' + serverURL + '/watch', {
+      path: '/sock'
+    }).on('refresh', function() {
+      location.reload()
+    })
 })

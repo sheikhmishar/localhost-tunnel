@@ -10,7 +10,8 @@ var usernameInput = document.getElementById('username-input') || dummy,
 // State variables
 var shouldTunnel = false,
   maxLogLength = 20,
-  streamChunkSize = 1024 * 1024 * 2 // 2MB
+  streamChunkSize = 1024 * 1024 * 2, // 2MB
+  maxStreamSize = 1024 * 1024 * 1024 // 1GB
 
 // Server variables
 var serverProtocol = location.protocol || 'http:',
@@ -30,8 +31,6 @@ function intitiateSocket() {
   })
   socket.on('request', preprocessRequest)
 }
-
-
 
 /** @param {string} username */
 function validateUsername(username) {
@@ -139,10 +138,14 @@ function makeRequestToLocalhost(req) {
 function tunnelLocalhostToServer(clientRequest) {
   var path = clientRequest.path,
     responseId = clientRequest.requestId
-  return makeRequestToLocalhost(clientRequest)
-    .catch(function(localhostResponseError) {
-      return localhostResponseError.response
-    })
+
+  makeRequestToLocalhost(clientRequest)
+    .catch(
+      /** @param {Axios.Error} localhostResponseError */
+      function(localhostResponseError) {
+        return localhostResponseError.response
+      }
+    )
     .then(function(localhostResponse) {
       appendLog(
         localhostResponse.config.method.toUpperCase() +
@@ -161,6 +164,8 @@ function tunnelLocalhostToServer(clientRequest) {
       sendResponseToServer(
         {
           status: 500,
+          statusText: '505 Client Error',
+          config: {},
           headers: clientRequest.headers,
           data: objectToArrayBuffer({ message: '505 Client Error' })
         },
@@ -170,7 +175,7 @@ function tunnelLocalhostToServer(clientRequest) {
 }
 
 /**
- * @param {LocalhostTunnel.LocalhostResponse} localhostResponse
+ * @param {Axios.Response} localhostResponse
  * @param {string} responseId
  */
 function sendResponseToServer(localhostResponse, responseId) {
@@ -179,6 +184,29 @@ function sendResponseToServer(localhostResponse, responseId) {
     data = localhostResponse.data,
     dataByteLength = data.byteLength
 
+  var reqHeaders =
+    /** @type {IncomingHttpHeaders}*/ (localhostResponse.config.headers)
+  // PARTIAL CONTENT
+  if (status === 206) {
+    var range = reqHeaders['range'].split('=')[1].split('-'),
+      rangeStart = parseInt(range[0]),
+      rangeEnd = range[1]
+        ? parseInt(range[1])
+        : rangeStart + streamChunkSize - 1
+
+    headers['accept-ranges'] = 'bytes'
+    headers['content-range'] =
+      'bytes ' + rangeStart + '-' + rangeEnd + '/' + maxStreamSize
+      
+    // FIXME: I used a trick to fool browser. I'v set max size to 1GB
+    // Download accelerators cannot open more than one connections
+    // (maxStreamSize) should be total_length
+    // can use an object to store prev total_length values
+  }
+  // REDIRECT
+  else if ([301, 303, 307, 308].includes(status)) {
+  }
+
   socket.emit(responseId, {
     status: status,
     headers: headers,
@@ -186,9 +214,9 @@ function sendResponseToServer(localhostResponse, responseId) {
   })
 
   var totalChunks = Math.ceil(dataByteLength / streamChunkSize)
-  var start,
-    end,
-    chunk,
+  var startByte = 0,
+    endByte = 0,
+    chunk = new ArrayBuffer(0),
     i = 0
 
   // TODO: on ('CONTINUE.id')
@@ -201,9 +229,9 @@ function sendResponseToServer(localhostResponse, responseId) {
       return socket.removeAllListeners(responseId)
     }
 
-    start = i * streamChunkSize
-    end = start + streamChunkSize
-    chunk = data.slice(start, end)
+    startByte = i * streamChunkSize
+    endByte = startByte + streamChunkSize
+    chunk = data.slice(startByte, endByte)
 
     socket.emit(responseId, {
       data: chunk

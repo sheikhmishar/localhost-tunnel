@@ -1,5 +1,11 @@
 import express from 'express'
-import { AxiosStatic, AxiosRequestConfig, Method as AxiosMethod } from './axios'
+import {
+  AxiosStatic,
+  AxiosRequestConfig,
+  Method as AxiosMethod,
+  AxiosResponse,
+  AxiosError
+} from './axios'
 import http from 'http'
 
 declare global {
@@ -14,6 +20,7 @@ declare global {
           [x: string]: string
         }
     interface RequestConfig extends AxiosRequestConfig {
+      headers: IncomingHttpHeaders
       data: Axios.data
       onUploadProgress?: (progressEvent: Axios.ProgressEvent) => void
       onDownloadProgress?: (progressEvent: Axios.ProgressEvent) => void
@@ -26,10 +33,20 @@ declare global {
     interface ProgressEvent extends globalThis.ProgressEvent {
       target: Axios.EventTarget
     }
+
+    interface Response extends AxiosResponse {
+      headers: IncomingHttpHeaders
+      data: Buffer | ArrayBuffer
+      request?: {
+        start?: number
+        end?: number
+      }
+    }
+    interface Error extends AxiosError {}
   }
   namespace SocketIOClient {
     interface Emitter {
-      removeAllListeners(event?: string | symbol): this;
+      removeAllListeners(event?: string | symbol): this
     }
   }
   namespace SocketIO {
@@ -65,12 +82,7 @@ declare global {
     interface ClientRequest extends LocalhostTunnel.ServerRequest {
       files?: globalThis.Express.Multer.File[]
     }
-    interface LocalhostResponse {
-      status: number
-      headers: IncomingHttpHeaders
-      data: Buffer | ArrayBuffer
-    }
-    interface ClientResponse extends LocalhostTunnel.LocalhostResponse {
+    interface ClientResponse extends Axios.Response {
       dataByteLength: number
     }
   }

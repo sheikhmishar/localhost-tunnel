@@ -14,6 +14,7 @@
 10. Download/Upload progress in developer console
 11. Authorization supported
 12. Clickable link on logger
+13. Real-time chunked file streaming with pause-resume support
 
 ## Screenshots:
 

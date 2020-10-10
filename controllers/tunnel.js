@@ -1,14 +1,15 @@
 const { findClientSocketByUsername } = require('../models/ClientSocket')
-const { byteToString, log } = require('../helpers')
-const parseUrl = require('url').parse
-const uid = require('uuid').v1
+const uid = /** @type {() => string} */ (require('uuid').v1)
+const { byteToString, log, sanitizeHeaders } = require('../helpers')
 
+/** @type {Express.RequestHandler} */
 const validateUsername = (req, res) => {
   if (findClientSocketByUsername(req.body.username))
     res.status(400).json({ isValidUsername: false })
   else res.status(200).json({ isValidUsername: true })
 }
 
+/** @type {Express.RequestHandler} */
 const handleTunneling = (req, res) => {
   // Redirecting all requests from requester to client localhost
   const { username } = req.params
@@ -16,21 +17,23 @@ const handleTunneling = (req, res) => {
   if (!clientSocket)
     return res.status(404).json({ message: 'Client not available' }) // TODO: 404 html
 
-  const { files = [] } = req,
+  const files = /**@type {Express.Multer.File[]} */ (req.files || []),
     unique_id = uid(),
     requestId = unique_id, // TODO: `REQUEST.${unique_id}`
-    { method, headers, body } = req,
-    path = req.url.replace(`/${username}`, ''),
-    fileName =
-      parseUrl(path).path === '/' ? 'index.html' : path.split('/').pop()
+    { method, body } = req,
+    headers = sanitizeHeaders(req.headers),
+    path = `/${req.params[0]}`,
+    fileName = path.endsWith('/') ? 'index.html' : path.split('/').pop()
 
+  /** @type {LocalhostTunnel.ServerRequest} */
   const request = {
     requestId, // TODO: unique_id
     path,
-    method,
+    method: /** @type {HTTPMethods} */ (method),
     headers,
     body // TODO: stream
   }
+
   clientSocket.emit('request', request)
   // TODO: event
   files.forEach(file => clientSocket.emit(requestId, file)) // TODO: stream
@@ -41,6 +44,7 @@ const handleTunneling = (req, res) => {
   let responseLength = 0
   const continueReceivingData = () => clientSocket.emit(responseId)
 
+  /** @param {LocalhostTunnel.ClientResponse} clientSocketResponse */
   const onClientSocketResponse = clientSocketResponse => {
     const { status, headers, data, dataByteLength } = clientSocketResponse
 
@@ -54,7 +58,7 @@ const handleTunneling = (req, res) => {
       // Continue receiving data if data buffer is not full
       // Else pause until data buffer is drained
       if (res.write(data)) continueReceivingData()
-      else res.on('drain', continueReceivingData)
+      else res.once('drain', continueReceivingData)
 
       if (process.env.NODE_ENV !== 'production') {
         responseLength += Buffer.byteLength(data, 'binary')
@@ -65,19 +69,23 @@ const handleTunneling = (req, res) => {
 
     // Set headers from status, headers, dataByteLength
     res.status(status)
-    res.set({
-      'Content-Disposition': `inline; filename="${fileName}"`,
-      'Last-Modified': headers['last-modified'] || new Date().toUTCString(),
-      'Cache-Control': headers['cache-control'] || 'public, max-age=0',
-      'Content-Length': headers['content-length'] || dataByteLength,
-      'Etag': headers['etag']
-    }) // TODO: {...headers}
+    res.set(headers)
+    res.set('Content-Disposition', `inline; filename="${fileName}"`)
     res.contentType(headers['content-type'] || fileName)
+
+    if (!res.hasHeader('Last-Modified'))
+      res.set('Last-Modified', new Date().toUTCString())
+    if (!res.hasHeader('Cache-Control'))
+      res.set('Cache-Control', 'public, max-age=604800')
+    if (!res.hasHeader('Content-Length'))
+      res.set('Content-Length', dataByteLength.toString())
+
     continueReceivingData()
   }
   clientSocket.on(responseId, onClientSocketResponse)
 }
 
+/** @type {Express.RequestHandler} */
 const testTunnel = (req, res) => {
   req.on('data', chunk => log('req not parsed yet\n', chunk))
 

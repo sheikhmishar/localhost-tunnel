@@ -14,7 +14,10 @@ var shouldTunnel = false,
   maxStreamSize = 1024 * 1024 * 1024 // 1GB
 
 // Server variables
-var serverProtocol = location.protocol || 'http:',
+var isLocalhostRoot =
+    location.hostname === 'localhost' &&
+    location.origin + '/' === location.href,
+  serverProtocol = location.protocol || 'http:',
   socketProtocol = serverProtocol === 'http:' ? 'ws:' : 'wss:',
   serverURL = location.host // TODO: Will be replaced by deployed server url
 
@@ -123,11 +126,14 @@ function makeRequestToLocalhost(req) {
     url: url,
     data: data,
     withCredentials: true,
-    responseType: 'arraybuffer',
-    onUploadProgress: function(e) {
-      printCurrentProgress(e, url)
-    },
-    onDownloadProgress: function(e) {
+    responseType: 'arraybuffer'
+  }
+
+  if (isLocalhostRoot) {
+    // prettier-ignore
+    requestParameters.onUploadProgress
+    = requestParameters.onDownloadProgress
+    = function(e) {
       printCurrentProgress(e, url)
     }
   }
@@ -197,7 +203,7 @@ function sendResponseToServer(localhostResponse, responseId) {
     headers['accept-ranges'] = 'bytes'
     headers['content-range'] =
       'bytes ' + rangeStart + '-' + rangeEnd + '/' + maxStreamSize
-      
+
     // FIXME: I used a trick to fool browser. I'v set max size to 1GB
     // Download accelerators cannot open more than one connections
     // (maxStreamSize) should be total_length
@@ -368,8 +374,6 @@ window.addEventListener('load', function() {
   refreshTunnelStatus()
   tunnelToggleButton.addEventListener('click', onButtonClick)
 
-  var isLocalhostRoot =
-    location.hostname === 'localhost' && location.origin + '/' === location.href
   // if currently in localhost root, refresh page on file change
   if (isLocalhostRoot)
     io.connect(socketProtocol + '//' + serverURL + '/watch', {

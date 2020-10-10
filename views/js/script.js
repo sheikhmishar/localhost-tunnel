@@ -199,16 +199,11 @@ function sendResponseToServer(localhostResponse, responseId) {
   var reqHeaders =
     /** @type {IncomingHttpHeaders}*/ (localhostResponse.config.headers)
   // PARTIAL CONTENT
-  console.log(localhostResponse)
 
   if (status === 206) {
     var range = reqHeaders['range'].split('=')[1].split('-'),
       rangeStart = parseInt(range[0]),
-      rangeEnd =
-        // range[1]
-        // ?
-        parseInt(range[1])
-    // : rangeStart + streamChunkSize - 1
+      rangeEnd = parseInt(range[1])
 
     headers['accept-ranges'] = 'bytes'
     headers['content-range'] =
@@ -219,7 +214,7 @@ function sendResponseToServer(localhostResponse, responseId) {
     // (maxStreamSize) should be total_length
     // can use an object to store prev total_length values
   }
-  // REDIRECT
+  // TODO: REDIRECT
   else if ([301, 303, 307, 308].includes(status)) {
   }
 

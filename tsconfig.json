@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "CommonJS",
+    "checkJs": true,
+    "allowJs": true, // breaks auto type determine
+    "noImplicitAny": false,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "typeRoots": [
+      "./@types",
+      "./node_modules/@types",
+      "./node_modules/**/types"
+    ]
+  },
+  "exclude": ["./node_modules", "./**/node_modules/*"],
+  // "include": ["./models/**/*", "./views/**/*", "./controllers/**/*", "**/*.d.ts", "node_modules/@types/axios/axios.d.ts"],
+  // "files": ["./@types/index.d.ts"],
+  "typeAcquisition": {
+    "enable": true
+  }
+}

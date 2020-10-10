@@ -82,6 +82,12 @@ function printCurrentProgress(e, url) {
 
 /** @param {LocalhostTunnel.ClientRequest} serverRequest */
 function preprocessRequest(serverRequest) {
+  if (serverRequest.headers['range']) {
+    var range = serverRequest.headers['range'].split('=')[1].split('-')
+    if (!range[1])
+      serverRequest.headers['range'] += parseInt(range[0]) + streamChunkSize
+  }
+
   var formadataId = serverRequest.requestId
   socket.on(formadataId, socketOnFileReceived)
 
@@ -193,12 +199,16 @@ function sendResponseToServer(localhostResponse, responseId) {
   var reqHeaders =
     /** @type {IncomingHttpHeaders}*/ (localhostResponse.config.headers)
   // PARTIAL CONTENT
+  console.log(localhostResponse)
+
   if (status === 206) {
     var range = reqHeaders['range'].split('=')[1].split('-'),
       rangeStart = parseInt(range[0]),
-      rangeEnd = range[1]
-        ? parseInt(range[1])
-        : rangeStart + streamChunkSize - 1
+      rangeEnd =
+        // range[1]
+        // ?
+        parseInt(range[1])
+    // : rangeStart + streamChunkSize - 1
 
     headers['accept-ranges'] = 'bytes'
     headers['content-range'] =

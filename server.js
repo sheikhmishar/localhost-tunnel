@@ -9,16 +9,16 @@ app.use(raw())
 const router = require('./routes')
 app.use(router)
 
-app.get('/ping', (req, res) =>
-  res.status(200).json({ message: 'Server is alive' })
-)
+app.get('/ping', (_, res) => res.status(200).json({ message: 'Server alive' }))
 
-app.use((req, res, next) =>
-  res.status(404).json({ message: '404 Invalid Route' })
-)
+app.use((_, res, __) => res.status(404).json({ message: '404 Invalid Route' }))
 
-app.use((err, req, res, next) =>
-  res.status(500).json({ message: '500 Internal Server Error' })
+app.use(
+  /** @type {Express.ErrorRequestHandler} */
+  (err, _, res, __) => {
+    console.error(err)
+    res.status(500).json({ message: '500 Internal Server Error' })
+  }
 )
 
 const { PORT = 5000 } = process.env

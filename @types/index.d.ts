@@ -7,6 +7,7 @@ import {
   AxiosError
 } from './axios'
 import http from 'http'
+import { Chalk as chalk } from '../views/node_modules/chalk'
 
 declare global {
   const axios: AxiosStatic
@@ -86,6 +87,8 @@ declare global {
       dataByteLength: number
     }
   }
+
+  interface Chalk extends chalk {}
 
   interface Window {
     readyState: 'loaded' | 'complete'

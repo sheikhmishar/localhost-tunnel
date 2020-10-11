@@ -1,30 +1,34 @@
 import setOnLoad from '../../lib/onloadPolyfill'
 
-// TODO: write in modern ES6 and transpile via babel
-// HTML elements
-const dummy = document.createElement('div')
+import {
+  usernameInput,
+  portInput,
+  tunnelToggleButton,
+  logWrapper,
+  printAxiosProgress,
+  generateHyperlink,
+  enableInputs,
+  disableInputs,
+  refreshTunnelStatus,
+  appendLog
+} from './uiHelpers'
 
-const usernameInput = document.getElementById('username-input') || dummy,
-  portInput = document.getElementById('port-input') || dummy,
-  tunnelToggleButton = document.getElementById('tunnel-toggle-button') || dummy,
-  logWrapper = document.getElementsByClassName('log-wrapper')[0] || dummy
+import {
+  isLocalhostRoot,
+  maxLogLength,
+  maxStreamSize,
+  serverProtocol,
+  serverURL,
+  socketTunnelURL,
+  socketWatchURL,
+  streamChunkSize
+} from './constants'
 
-// State variables and constants
-let shouldTunnel = false
-const streamChunkSize = 1024 * 1024 * 2, // 2MB
-  maxStreamSize = 1024 * 1024 * 1024, // 1GB
-  maxLogLength = 20
+import { inputHasErrors, containsFormdata } from './validators'
+import { objectToArrayBuffer } from './parsers'
 
-// Server variables
-const serverURL = location.host,
-  serverProtocol = location.protocol || 'http:',
-  socketProtocol = serverProtocol === 'http:' ? 'ws:' : 'wss:',
-  validatorURL = `${serverProtocol}//${serverURL}/validateusername`,
-  socketTunnelURL = `${socketProtocol}//${serverURL}/tunnel`,
-  socketWatchURL = `${socketProtocol}//${serverURL}/watch`,
-  isLocalhostRoot =
-    location.hostname === 'localhost' && location.origin + '/' === location.href
-
+// State variables
+let isTunnelling = false
 /** @type {SocketIOClient.Socket} */
 let socket
 
@@ -35,53 +39,16 @@ const intitiateSocket = () => {
   socket.on('request', preprocessRequest)
 }
 
-/** @param {string} username */
-const validateUsername = async username => {
-  try {
-    const res = await axios.post(validatorURL, { username })
-    return res.data.isValidUsername
-  } catch (e) {
-    return false
-  }
-}
-
-/** @param {IncomingHttpHeaders} headers */
-const containsFormdata = headers =>
-  (headers['content-type'] &&
-    headers['content-type'].includes('multipart/form-data')) ||
-  (headers['Content-Type'] &&
-    headers['Content-Type'].includes('multipart/form-data'))
-
-/**
- * @param {Axios.ProgressEvent} e
- * @param {string} url
- */
-const printCurrentProgress = (e, url) => {
-  var loaded = e.loaded
-
-  e.target.start = e.target.end ? e.target.end : 0
-  e.target.end = loaded
-
-  var start = e.target.start,
-    end = e.target.end,
-    total = e.total,
-    percent = e.lengthComputable ? Math.round((loaded * 100) / total) : 101,
-    type = e.target.responseURL ? 'UPLOAD' : 'DOWNLOAD'
-
-  console.log(type, url, start, end, percent, '%')
-  /* TODO: get chunked response using fetch API.
-      Then if success, send 'DONE' to end stream via socket */
-}
-
 /** @param {LocalhostTunnel.ClientRequest} serverRequest */
 function preprocessRequest(serverRequest) {
-  if (serverRequest.headers['range']) {
-    var range = serverRequest.headers['range'].split('=')[1].split('-')
+  const { headers, requestId: formadataId } = serverRequest
+
+  if (headers['range']) {
+    const range = headers['range'].split('=')[1].split('-')
     if (!range[1])
       serverRequest.headers['range'] += parseInt(range[0]) + streamChunkSize
   }
 
-  var formadataId = serverRequest.requestId
   socket.on(formadataId, socketOnFileReceived)
 
   /** @type {Express.Multer.File[]} */
@@ -129,43 +96,46 @@ const makeRequestToLocalhost = req => {
 
   if (isLocalhostRoot)
     requestParameters.onUploadProgress = requestParameters.onDownloadProgress = e =>
-      printCurrentProgress(e, url)
+      printAxiosProgress(e, url)
 
   return axios(requestParameters)
 }
 
 /** @param {LocalhostTunnel.ClientRequest} clientRequest */
-function tunnelLocalhostToServer(clientRequest) {
+async function tunnelLocalhostToServer(clientRequest) {
   const { path, requestId: responseId } = clientRequest
 
-  return makeRequestToLocalhost(clientRequest)
-    .catch(
-      /** @param {Axios.Error} localhostResponseError */
-      localhostResponseError => localhostResponseError.response
-    )
-    .then(localhostResponse => {
-      const { status } = localhostResponse
-      const method = localhostResponse.config.method.toUpperCase()
-      const url = generateHyperlink(localhostResponse.config.url)
-      const tunnelUrl = generateHyperlink(
-        `${serverProtocol}//${serverURL}/${usernameInput.value}${path}`
-      )
+  try {
+    /** @type {Axios.Response} */
+    let localhostResponse
+    try {
+      localhostResponse = await makeRequestToLocalhost(clientRequest)
+    } catch (localhostResponseError) {
+      localhostResponse =
+        /** @type {Axios.Error}*/ (localhostResponseError).response
+    }
 
-      appendLog(`${method} ${status} ${url} -> ${tunnelUrl}`)
-      sendResponseToServer(localhostResponse, responseId)
-    })
-    .catch(function() {
-      sendResponseToServer(
-        {
-          status: 500,
-          statusText: '505 Client Error',
-          config: {},
-          headers: clientRequest.headers,
-          data: objectToArrayBuffer({ message: '505 Client Error' })
-        },
-        responseId
-      )
-    })
+    const { status } = localhostResponse
+    const method = localhostResponse.config.method.toUpperCase()
+    const url = generateHyperlink(localhostResponse.config.url)
+    const tunnelUrl = generateHyperlink(
+      `${serverProtocol}//${serverURL}/${usernameInput.value}${path}`
+    )
+    appendLog(`${method} ${status} ${url} -> ${tunnelUrl}`)
+    sendResponseToServer(localhostResponse, responseId)
+  } catch (e) {
+    // TODO: print in dev
+    sendResponseToServer(
+      {
+        status: 500,
+        statusText: '505 Client Error',
+        config: {},
+        headers: clientRequest.headers,
+        data: objectToArrayBuffer({ message: '505 Client Error' })
+      },
+      responseId
+    )
+  }
 }
 
 /**
@@ -173,23 +143,19 @@ function tunnelLocalhostToServer(clientRequest) {
  * @param {string} responseId
  */
 function sendResponseToServer(localhostResponse, responseId) {
-  var status = localhostResponse.status,
-    headers = localhostResponse.headers,
-    data = localhostResponse.data,
-    dataByteLength = data.byteLength
+  const { status, headers, data, config } = localhostResponse
+  const dataByteLength = data.byteLength
 
-  var reqHeaders =
-    /** @type {IncomingHttpHeaders}*/ (localhostResponse.config.headers)
+  const reqHeaders = /** @type {IncomingHttpHeaders}*/ (config.headers)
+
   // PARTIAL CONTENT
-
   if (status === 206) {
-    var range = reqHeaders['range'].split('=')[1].split('-'),
-      rangeStart = parseInt(range[0]),
-      rangeEnd = parseInt(range[1])
+    const range = reqHeaders['range'].split('=')[1].split('-'),
+      startByte = parseInt(range[0]),
+      endByte = parseInt(range[1])
 
     headers['accept-ranges'] = 'bytes'
-    headers['content-range'] =
-      'bytes ' + rangeStart + '-' + rangeEnd + '/' + maxStreamSize
+    headers['content-range'] = `bytes ${startByte}-${endByte}/${maxStreamSize}`
 
     // FIXME: I used a trick to fool browser. I'v set max size to 1GB
     // Download accelerators cannot open more than one connections
@@ -200,25 +166,18 @@ function sendResponseToServer(localhostResponse, responseId) {
   else if ([301, 303, 307, 308].includes(status)) {
   }
 
-  socket.emit(responseId, {
-    status: status,
-    headers: headers,
-    dataByteLength: dataByteLength
-  })
+  socket.emit(responseId, { status, headers, dataByteLength })
 
-  var totalChunks = Math.ceil(dataByteLength / streamChunkSize)
-  var startByte = 0,
+  const totalChunks = Math.ceil(dataByteLength / streamChunkSize)
+  let startByte = 0,
     endByte = 0,
     chunk = new ArrayBuffer(0),
     i = 0
 
   // TODO: on ('CONTINUE.id')
-  socket.on(responseId, sendChunkedResponse)
-  function sendChunkedResponse() {
+  const sendChunkedResponse = () => {
     if (i === totalChunks) {
-      socket.emit(responseId, {
-        data: 'DONE'
-      })
+      socket.emit(responseId, { data: 'DONE' })
       return socket.removeAllListeners(responseId)
     }
 
@@ -226,20 +185,19 @@ function sendResponseToServer(localhostResponse, responseId) {
     endByte = startByte + streamChunkSize
     chunk = data.slice(startByte, endByte)
 
-    socket.emit(responseId, {
-      data: chunk
-    })
+    socket.emit(responseId, { data: chunk })
 
     i++
   }
+  socket.on(responseId, sendChunkedResponse)
 }
 
 /** @param {LocalhostTunnel.ClientRequest} req */
 function getFormdata(req) {
-  var fieldNames = Object.keys(req.body)
-  var fieldName, file, mime, fileName
+  const fieldNames = Object.keys(req.body)
+  let fieldName, file, mime, fileName
 
-  var data = new FormData()
+  const data = new FormData()
   for (let i = 0; i < fieldNames.length; i++) {
     fieldName = fieldNames[i]
     data.append(fieldName, req.body[fieldName])
@@ -256,67 +214,22 @@ function getFormdata(req) {
   return data
 }
 
-/** @param {Object<string, object>} object */
-function objectToArrayBuffer(object) {
-  var json = JSON.stringify(object)
-  var buffer = new ArrayBuffer(json.length)
-  var bufferView = new Uint8Array(buffer)
-  for (var i = 0; i < json.length; i++) bufferView[i] = json.charCodeAt(i)
-
-  return buffer
-}
-
 // UI helper functions
-/** @param {string} url */
-function generateHyperlink(url) {
-  return (
-    '<a href="' +
-    url +
-    '" target="_blank" class="badge badge-info">' +
-    url +
-    '</a>'
-  )
-}
 
-function refreshTunnelStatus() {
-  if (shouldTunnel) {
-    var tunnelUrl =
-      serverProtocol + '//' + serverURL + '/' + usernameInput.value + '/'
-    appendLog('Tunnel is running at port ' + portInput.value)
-    appendLog(
-      'Your localhost is now available at ' + generateHyperlink(tunnelUrl)
-    ) // TODO: Permanently view current tunnel address
-    tunnelToggleButton.innerText = 'Stop tunneling'
-  } else {
-    appendLog('Tunnel is stopped')
-    tunnelToggleButton.innerText = 'Start tunneling'
-  }
-}
-
-function disableInputs() {
-  usernameInput.setAttribute('disabled', 'true')
-  portInput.setAttribute('disabled', 'true')
-}
-
-function enableInputs() {
-  usernameInput.removeAttribute('disabled')
-  portInput.removeAttribute('disabled')
-}
 
 function toggleTunnel() {
-  shouldTunnel = !shouldTunnel
+  if (isTunnelling) socket.disconnect()
+  else intitiateSocket()
 
-  if (shouldTunnel) intitiateSocket()
-  else socket.disconnect()
-
-  refreshTunnelStatus()
+  isTunnelling = !isTunnelling
+  refreshTunnelStatus(isTunnelling)
 }
 
 /** @param {Event} e */
 async function onButtonClick(e) {
   e.preventDefault()
 
-  if (shouldTunnel) {
+  if (isTunnelling) {
     toggleTunnel()
     enableInputs()
   } else {
@@ -329,35 +242,9 @@ async function onButtonClick(e) {
   }
 }
 
-async function inputHasErrors() {
-  const port = portInput.value,
-    username = usernameInput.value
-  if (port.length < 2)
-    return 'Port must contain 2 digits minimum and number only'
-  else if (port[0] === '0') return 'Port cannot start with 0'
-  else if (username.length <= 0) return 'Username length must be at least 1'
-  else if (username.includes('/')) return 'Username cannot have /'
-  else if (username.includes('.')) return 'Username cannot have .'
-  else if (username.includes('"')) return 'Username cannot have "'
-  else if (username.includes("'")) return "Username cannot have '"
-  else if (!(await validateUsername(username)))
-    return 'Username exists or connection error'
-  return false
-}
-
-/** @param {string} log */
-function appendLog(log) {
-  var newDomElement = document.createElement('h6')
-  newDomElement.setAttribute('class', 'text-primary')
-  newDomElement.innerHTML = log
-  logWrapper.prepend(newDomElement)
-
-  if (logWrapper.childElementCount > maxLogLength) logWrapper.lastChild.remove()
-}
-
 // main
 setOnLoad(window, () => {
-  refreshTunnelStatus()
+  refreshTunnelStatus(false)
   tunnelToggleButton.addEventListener('click', onButtonClick) // TODO: polyfill
 
   // if currently in localhost root, refresh page on file change
@@ -367,4 +254,4 @@ setOnLoad(window, () => {
     )
 })
 
-export default null
+export default {}

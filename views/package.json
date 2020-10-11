@@ -6,7 +6,7 @@
   "scripts": {
     "start": "parcel src/index.html -d dev -p 3000 --cache-dir dev/.cache",
     "start:open": "parcel src/index.html -d dev -p 3000 --cache-dir dev/.cache --open",
-    "build": "npx parcel build src/index.html -d build --cache-dir dev/.cache --public-url .",
+    "build": "parcel build src/index.html -d build --cache-dir dev/.cache --public-url .",
     "build:min": "parcel build src/index.html -d build --cache-dir dev/.cache --public-url . --experimental-scope-hoisting",
     "watch": "parcel watch src/index.html -d build --cache-dir dev/.cache --public-url .",
     "watch:min": "parcel watch src/index.html -d build --cache-dir dev/.cache --public-url . --experimental-scope-hoisting",
@@ -16,7 +16,7 @@
   "sideEffects": false,
   "author": "sheikhMishar00",
   "license": "MIT",
-  "devDependencies": {
+  "dependencies": {
     "parcel-bundler": "^1.12.4",
     "@babel/core": "^7.9.0",
     "@babel/plugin-transform-runtime": "^7.9.0",

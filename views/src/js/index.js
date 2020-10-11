@@ -387,3 +387,5 @@ window.addEventListener('load', function() {
       location.reload()
     })
 })
+
+export default null

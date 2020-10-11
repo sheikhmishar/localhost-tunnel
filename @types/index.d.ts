@@ -86,6 +86,11 @@ declare global {
       dataByteLength: number
     }
   }
+
+  interface HTMLScriptElement {
+    readyState: 'loaded' | 'complete'
+    onreadystatechange : () => void
+  }
 }
 
 // declare module 'express-serve-static-core' {

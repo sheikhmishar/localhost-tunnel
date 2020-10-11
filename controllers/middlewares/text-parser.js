@@ -1,5 +1,5 @@
 const { is } = require('type-is')
-const { validTextTypes } = require('../helpers')
+const { validTextTypes } = require('../../helpers')
 const textParser = (req, res, next) => {
   if (
     Object.keys(req.body).length ||

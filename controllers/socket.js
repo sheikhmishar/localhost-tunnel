@@ -30,7 +30,7 @@ const setupSocket = (io, viewsDir) => {
   if (process.env.NODE_ENV !== 'production') {
     io.of('/watch').on('connection', onWatchSocketConnection)
     require('fs').watch(viewsDir, { recursive: true }, () =>
-      io.of('/watch').emit('refresh')
+      setTimeout(() => io.of('/watch').emit('refresh'), 750)
     )
   }
 }

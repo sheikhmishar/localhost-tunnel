@@ -9,7 +9,7 @@ const express = require('express'),
     handleTunneling,
     testTunnel,
     validateUsername
-  } = require('../controllers/tunnel')
+  } = require('../tunnel')
 
 router.all('/:username/*', textParser, formDataParser, handleTunneling)
 

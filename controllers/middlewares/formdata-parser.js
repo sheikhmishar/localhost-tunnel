@@ -1,5 +1,5 @@
 const concatStream = require('concat-stream')
-const { log } = require('../helpers')
+const { log } = require('../../helpers')
 const { is } = require('type-is')
 const Busboy = require('busboy')
 

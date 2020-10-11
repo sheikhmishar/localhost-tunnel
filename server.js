@@ -1,12 +1,15 @@
 const express = require('express')
+const path = require('path')
 const app = express()
 
-const viewsDir = require('path').join(__dirname, 'views')
+const viewsDir = path.join(__dirname, 'views', 'build')
+const vendorDir = path.join(__dirname, 'views', 'src', 'js', 'vendor')
 const { raw, static } = express
 app.use(static(viewsDir))
+app.use(static(vendorDir))
 app.use(raw())
 
-const router = require('./routes')
+const router = require('./controllers/routes')
 app.use(router)
 
 app.get('/ping', (_, res) => res.status(200).json({ message: 'Server alive' }))

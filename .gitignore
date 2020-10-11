@@ -1,4 +1,6 @@
 /node_modules/
 /requests.rest
 /views/*.rar
-/views/test.mp4
+/views/**/test.mp4
+/views/dev
+/views/build

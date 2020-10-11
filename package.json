@@ -25,7 +25,9 @@
   "main": "server.js",
   "scripts": {
     "test": "mocha test.js",
-    "watch": "nodemon -i views",
+    "build": "npm run build --prefix views",
+    "postinstall": "cd views && npm i",
+    "watch": "concurrently \"nodemon -i views\" \"npm run watch --prefix views\"",
     "watch:debug": "nodemon -e js,json -x \"node --inspect-brk server.js\""
   },
   "engines": {

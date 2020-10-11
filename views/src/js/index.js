@@ -1,69 +1,62 @@
+import setOnLoad from '../../lib/onloadPolyfill'
+
 // TODO: write in modern ES6 and transpile via babel
 // HTML elements
-var dummy = document.createElement('div')
+const dummy = document.createElement('div')
 
-var usernameInput = document.getElementById('username-input') || dummy,
+const usernameInput = document.getElementById('username-input') || dummy,
   portInput = document.getElementById('port-input') || dummy,
   tunnelToggleButton = document.getElementById('tunnel-toggle-button') || dummy,
   logWrapper = document.getElementsByClassName('log-wrapper')[0] || dummy
 
-// State variables
-var shouldTunnel = false,
-  maxLogLength = 20,
-  streamChunkSize = 1024 * 1024 * 2, // 2MB
-  maxStreamSize = 1024 * 1024 * 1024 // 1GB
+// State variables and constants
+let shouldTunnel = false
+const streamChunkSize = 1024 * 1024 * 2, // 2MB
+  maxStreamSize = 1024 * 1024 * 1024, // 1GB
+  maxLogLength = 20
 
 // Server variables
-var isLocalhostRoot =
-    location.hostname === 'localhost' &&
-    location.origin + '/' === location.href,
+const serverURL = location.host,
   serverProtocol = location.protocol || 'http:',
   socketProtocol = serverProtocol === 'http:' ? 'ws:' : 'wss:',
-  serverURL = location.host // TODO: Will be replaced by deployed server url
+  validatorURL = `${serverProtocol}//${serverURL}/validateusername`,
+  socketTunnelURL = `${socketProtocol}//${serverURL}/tunnel`,
+  socketWatchURL = `${socketProtocol}//${serverURL}/watch`,
+  isLocalhostRoot =
+    location.hostname === 'localhost' && location.origin + '/' === location.href
 
 /** @type {SocketIOClient.Socket} */
-var socket
+let socket
 
 // Helper functions
-function intitiateSocket() {
-  socket = io.connect(socketProtocol + '//' + serverURL + '/tunnel', {
-    path: '/sock'
-  })
-  socket.on('connect', function() {
-    socket.emit('username', usernameInput.value)
-  })
+const intitiateSocket = () => {
+  socket = io.connect(socketTunnelURL, { path: '/sock' })
+  socket.on('connect', () => socket.emit('username', usernameInput.value))
   socket.on('request', preprocessRequest)
 }
 
 /** @param {string} username */
-function validateUsername(username) {
-  return axios
-    .post(serverProtocol + '//' + serverURL + '/validateusername', {
-      username: username
-    })
-    .then(function(res) {
-      return res.data.isValidUsername
-    })
-    .catch(function() {
-      return false
-    })
+const validateUsername = async username => {
+  try {
+    const res = await axios.post(validatorURL, { username })
+    return res.data.isValidUsername
+  } catch (e) {
+    return false
+  }
 }
 
 /** @param {IncomingHttpHeaders} headers */
-function containsFormdata(headers) {
-  return (
-    (headers['content-type'] &&
-      headers['content-type'].includes('multipart/form-data')) ||
-    (headers['Content-Type'] &&
-      headers['Content-Type'].includes('multipart/form-data'))
-  )
-}
+const containsFormdata = headers =>
+  (headers['content-type'] &&
+    headers['content-type'].includes('multipart/form-data')) ||
+  (headers['Content-Type'] &&
+    headers['Content-Type'].includes('multipart/form-data'))
 
 /**
  * @param {Axios.ProgressEvent} e
  * @param {string} url
  */
-function printCurrentProgress(e, url) {
+const printCurrentProgress = (e, url) => {
   var loaded = e.loaded
 
   e.target.start = e.target.end ? e.target.end : 0
@@ -117,59 +110,48 @@ function preprocessRequest(serverRequest) {
 }
 
 /** @param {LocalhostTunnel.ClientRequest} req */
-function makeRequestToLocalhost(req) {
-  var url = serverProtocol + '//localhost:' + portInput.value + req.path
+const makeRequestToLocalhost = req => {
+  const { path, body, headers, method } = req
+  const url = `${serverProtocol}//localhost:${portInput.value}${path}`
 
   /** @type {Axios.data} */
-  var data
-  if (containsFormdata(req.headers)) data = getFormdata(req)
-  else data = req.body
+  const data = containsFormdata(headers) ? getFormdata(req) : body
 
   /** @type {Axios.RequestConfig} */
-  var requestParameters = {
-    headers: req.headers, // TODO: check range
-    method: req.method,
-    url: url,
-    data: data,
+  const requestParameters = {
+    headers,
+    method,
+    url,
+    data,
     withCredentials: true,
     responseType: 'arraybuffer'
   }
 
-  if (isLocalhostRoot) {
-    // prettier-ignore
-    requestParameters.onUploadProgress
-    = requestParameters.onDownloadProgress
-    = function(e) {
+  if (isLocalhostRoot)
+    requestParameters.onUploadProgress = requestParameters.onDownloadProgress = e =>
       printCurrentProgress(e, url)
-    }
-  }
+
   return axios(requestParameters)
 }
 
 /** @param {LocalhostTunnel.ClientRequest} clientRequest */
 function tunnelLocalhostToServer(clientRequest) {
-  var path = clientRequest.path,
-    responseId = clientRequest.requestId
+  const { path, requestId: responseId } = clientRequest
 
-  makeRequestToLocalhost(clientRequest)
+  return makeRequestToLocalhost(clientRequest)
     .catch(
       /** @param {Axios.Error} localhostResponseError */
-      function(localhostResponseError) {
-        return localhostResponseError.response
-      }
+      localhostResponseError => localhostResponseError.response
     )
-    .then(function(localhostResponse) {
-      appendLog(
-        localhostResponse.config.method.toUpperCase() +
-          ' ' +
-          localhostResponse.status +
-          ' ' +
-          generateHyperlink(localhostResponse.config.url) +
-          ' -> ' +
-          generateHyperlink(
-            serverProtocol + '//' + serverURL + '/' + usernameInput.value + path
-          )
+    .then(localhostResponse => {
+      const { status } = localhostResponse
+      const method = localhostResponse.config.method.toUpperCase()
+      const url = generateHyperlink(localhostResponse.config.url)
+      const tunnelUrl = generateHyperlink(
+        `${serverProtocol}//${serverURL}/${usernameInput.value}${path}`
       )
+
+      appendLog(`${method} ${status} ${url} -> ${tunnelUrl}`)
       sendResponseToServer(localhostResponse, responseId)
     })
     .catch(function() {
@@ -331,37 +313,36 @@ function toggleTunnel() {
 }
 
 /** @param {Event} e */
-function onButtonClick(e) {
+async function onButtonClick(e) {
   e.preventDefault()
 
   if (shouldTunnel) {
     toggleTunnel()
     enableInputs()
-  } else
-    validateInputsThen(function() {
+  } else {
+    const error = await inputHasErrors()
+    if (error) appendLog(error)
+    else {
       toggleTunnel()
       disableInputs()
-    })
+    }
+  }
 }
 
-/** @param {function(): void} callback */
-function validateInputsThen(callback) {
-  var port = portInput.value,
+async function inputHasErrors() {
+  const port = portInput.value,
     username = usernameInput.value
   if (port.length < 2)
-    appendLog('Port must contain 2 digits minimum and number only')
-  else if (port[0] === '0') appendLog('Port cannot start with 0')
-  else if (username.length <= 0) appendLog('Username length must be at least 1')
-  else if (username.includes('/')) appendLog('Username cannot have /')
-  else if (username.includes('.')) appendLog('Username cannot have .')
-  else if (username.includes('"')) appendLog('Username cannot have "')
-  else if (username.includes("'")) appendLog("Username cannot have '")
-  else {
-    validateUsername(username).then(function(isValidUsername) {
-      if (isValidUsername) callback()
-      else appendLog('Username exists or connection error')
-    })
-  }
+    return 'Port must contain 2 digits minimum and number only'
+  else if (port[0] === '0') return 'Port cannot start with 0'
+  else if (username.length <= 0) return 'Username length must be at least 1'
+  else if (username.includes('/')) return 'Username cannot have /'
+  else if (username.includes('.')) return 'Username cannot have .'
+  else if (username.includes('"')) return 'Username cannot have "'
+  else if (username.includes("'")) return "Username cannot have '"
+  else if (!(await validateUsername(username)))
+    return 'Username exists or connection error'
+  return false
 }
 
 /** @param {string} log */
@@ -375,17 +356,15 @@ function appendLog(log) {
 }
 
 // main
-window.addEventListener('load', function() {
+setOnLoad(window, () => {
   refreshTunnelStatus()
-  tunnelToggleButton.addEventListener('click', onButtonClick)
+  tunnelToggleButton.addEventListener('click', onButtonClick) // TODO: polyfill
 
   // if currently in localhost root, refresh page on file change
   if (isLocalhostRoot)
-    io.connect(socketProtocol + '//' + serverURL + '/watch', {
-      path: '/sock'
-    }).on('refresh', function() {
+    io.connect(socketWatchURL, { path: '/sock' }).on('refresh', () =>
       location.reload()
-    })
+    )
 })
 
 export default null

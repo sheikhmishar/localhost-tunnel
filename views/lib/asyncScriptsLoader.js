@@ -1,3 +1,5 @@
+import setOnLoad from '../lib/onloadPolyfill'
+
 // Load external JS/CSS from CDN
 /**
  * @param {string[]} urls
@@ -19,22 +21,10 @@ const loadScripts = (urls, callback) => {
     script.type = 'text/javascript'
     script.src = url
 
-    // backward compatibility
-    if (script.readyState) {
-      const isScriptReady =
-        script.readyState === 'loaded' || script.readyState === 'complete'
-      script.onreadystatechange = () => {
-        if (isScriptReady) {
-          script.onreadystatechange = null
-          totalScriptsLoaded++
-          loadScript(urls[index++])
-        }
-      }
-    } else
-      script.onload = () => {
-        totalScriptsLoaded++
-        loadScript(urls[index++])
-      }
+    setOnLoad(script, () => {
+      totalScriptsLoaded++
+      loadScript(urls[index++])
+    })
 
     bodyTag.append(script)
   }

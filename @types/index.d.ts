@@ -87,9 +87,15 @@ declare global {
     }
   }
 
+  interface Window {
+    readyState: 'loaded' | 'complete'
+  }
+
   interface HTMLScriptElement {
     readyState: 'loaded' | 'complete'
-    onreadystatechange : () => void
+    onreadystatechange:
+      | ((this: Window, ev: ProgressEvent<Window>) => any)
+      | null
   }
 }
 

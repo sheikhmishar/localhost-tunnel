@@ -1,4 +1,7 @@
+import http from 'http'
+import assert from 'assert'
 import express from 'express'
+import { Chalk as chalk } from '../views/node_modules/chalk'
 import {
   AxiosStatic,
   AxiosRequestConfig,
@@ -6,13 +9,13 @@ import {
   AxiosResponse,
   AxiosError
 } from './axios'
-import http from 'http'
-import { Chalk as chalk } from '../views/node_modules/chalk'
 
 declare global {
   const axios: AxiosStatic
+  const chai: { assert: typeof assert }
   type IncomingHttpHeaders = http.IncomingHttpHeaders
   type HTTPMethods = AxiosMethod
+
   namespace Axios {
     type data =
       | string

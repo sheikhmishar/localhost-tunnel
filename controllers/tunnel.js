@@ -59,6 +59,11 @@ const handleTunneling = (req, res) => {
       // Else pause until data buffer is drained
       if (res.write(data)) continueReceivingData()
       else res.once('drain', continueReceivingData)
+      res.once('error', () => log('res err', res.req.originalUrl, responseId)) // TODO: garbage collect client
+      res.once('close', () => log('res close', res.req.originalUrl, responseId)) // TODO: garbage collect client
+      res.once('finish', () =>
+        log('res finish', res.req.originalUrl, responseId)
+      ) // TODO: garbage collect client
 
       if (process.env.NODE_ENV !== 'production') {
         responseLength += Buffer.byteLength(data, 'binary')

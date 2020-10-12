@@ -9,6 +9,7 @@ import {
   streamChunkSize
 } from './constants'
 import { objectToArrayBuffer, parseRangeHeader } from './parsers'
+import { responseSizeCache } from './state'
 import {
   appendLog,
   disableInputs,
@@ -37,19 +38,25 @@ const intitiateSocket = () => {
 /** @param {LocalhostTunnel.ClientRequest} serverRequest */
 const preProcessContentRange = serverRequest => {
   const {
+    path,
     headers: { range }
   } = serverRequest
 
   if (range) {
-    const [rangeStart, rangeEnd] = parseRangeHeader(range)
+    const [rangeStart, rangeEnd] = parseRangeHeader(range) // TODO: attach
+
+    const maxRange = rangeStart + streamChunkSize
+    const safeRange = Math.min(
+      maxRange,
+      responseSizeCache[path] ? responseSizeCache[path] - 1 : maxRange
+    )
 
     if (rangeEnd) {
-      if (rangeEnd - rangeStart > streamChunkSize) {
-        const newRange = `bytes=${rangeStart}-${rangeStart + streamChunkSize}`
+      if (rangeEnd > safeRange) {
+        const newRange = `bytes=${rangeStart}-${safeRange}`
         serverRequest.headers.range = newRange
       }
-    } else serverRequest.headers.range += rangeStart + streamChunkSize
-    // TODO: min(rangeStart + streamChunkSize, fileSize)
+    } else serverRequest.headers.range += safeRange
   }
   return serverRequest
 }
@@ -160,18 +167,23 @@ function sendResponseToServer(localhostResponse, responseId) {
     headers,
     data,
     config: {
+      url,
       headers: { range }
     }
   } = localhostResponse
 
-  const dataByteLength = data.byteLength
+  const dataByteLength = data.byteLength,
+    path = url.replace(`${serverProtocol}//localhost:${portInput.value}`, '')
 
+  if (status === 200) {
+    responseSizeCache[path] = dataByteLength
+  }
   // PARTIAL CONTENT
-  if (status === 206) {
+  else if (status === 206) {
     const [startByte, endByte] = parseRangeHeader(range)
-
+    const originalSize = responseSizeCache[path] || maxStreamSize
     headers['accept-ranges'] = 'bytes'
-    headers['content-range'] = `bytes ${startByte}-${endByte}/${maxStreamSize}`
+    headers['content-range'] = `bytes ${startByte}-${endByte}/${originalSize}`
 
     // FIXME: I used a trick to fool browser. I'v set max size to 1GB
     // Download accelerators cannot open more than one connections
@@ -193,6 +205,8 @@ function sendResponseToServer(localhostResponse, responseId) {
   // TODO: on ('CONTINUE.id')
   const sendChunkedResponse = () => {
     if (i === totalChunks) {
+      // delete localhostResponse.data // TODO
+      // localhostResponse = null
       socket.emit(responseId, { data: 'DONE' })
       return socket.removeAllListeners(responseId)
     }

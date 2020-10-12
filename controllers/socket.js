@@ -5,34 +5,33 @@ const {
   removeClientSocket
 } = require('../models/ClientSocket')
 
-const onNewSocketConnection = socket => {
-  socket.on('username', username => {
+/** @param {SocketIO.Socket} socket */
+const socketOnUsername = socket =>
+  /** @param {string} username */
+  username => {
     socket.removeAllListeners('username')
     socket.username = username
     addClientSocket(socket)
     const clientSocketCount = getClientSocketCount()
     log(`Joined ${socket.id} ${username} Total users: ${clientSocketCount}`)
-  })
-  socket.on('disconnect', () => {
-    removeClientSocket(socket.id)
-    socket.removeAllListeners()
-    socket.disconnect(true)
-    const socketCount = getClientSocketCount()
-    log(`Left ${socket.id} ${socket.username} Total users: ${socketCount}`)
-  })
+  }
+
+/** @param {SocketIO.Socket} socket */
+const socketOnDisconnect = socket => () => {
+  removeClientSocket(socket.id)
+  socket.removeAllListeners()
+  socket.disconnect(true)
+  const socketCount = getClientSocketCount()
+  log(`Left ${socket.id} ${socket.username} Total users: ${socketCount}`)
 }
 
+/** @param {SocketIO.Socket} socket */
+const onNewSocketConnection = socket => {
+  socket.on('username', socketOnUsername(socket))
+  socket.on('disconnect', socketOnDisconnect(socket))
+}
+
+/** @param {SocketIO.Socket} socket */
 const onWatchSocketConnection = socket => log('visited', socket.client.id)
 
-const setupSocket = (io, viewsDir) => {
-  io.of('/tunnel').on('connection', onNewSocketConnection)
-
-  if (process.env.NODE_ENV !== 'production') {
-    io.of('/watch').on('connection', onWatchSocketConnection)
-    require('fs').watch(viewsDir, { recursive: true }, () =>
-      setTimeout(() => io.of('/watch').emit('refresh'), 750)
-    )
-  }
-}
-
-module.exports = { setupSocket }
+module.exports = { onNewSocketConnection, onWatchSocketConnection }

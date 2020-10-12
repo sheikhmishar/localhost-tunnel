@@ -21,8 +21,8 @@ declare global {
           [x: string]: string
         }
     interface RequestConfig extends AxiosRequestConfig {
-      headers: IncomingHttpHeaders
-      data: Axios.data
+      headers?: IncomingHttpHeaders
+      data?: Axios.data
       onUploadProgress?: (progressEvent: Axios.ProgressEvent) => void
       onDownloadProgress?: (progressEvent: Axios.ProgressEvent) => void
     }
@@ -36,6 +36,7 @@ declare global {
     }
 
     interface Response extends AxiosResponse {
+      config: Axios.RequestConfig
       headers: IncomingHttpHeaders
       data: Buffer | ArrayBuffer
       request?: {

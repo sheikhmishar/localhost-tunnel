@@ -1,21 +1,6 @@
 import setOnLoad from '../../lib/onloadPolyfill'
-
-import {
-  usernameInput,
-  portInput,
-  tunnelToggleButton,
-  logWrapper,
-  printAxiosProgress,
-  generateHyperlink,
-  enableInputs,
-  disableInputs,
-  refreshTunnelStatus,
-  appendLog
-} from './uiHelpers'
-
 import {
   isLocalhostRoot,
-  maxLogLength,
   maxStreamSize,
   serverProtocol,
   serverURL,
@@ -23,9 +8,19 @@ import {
   socketWatchURL,
   streamChunkSize
 } from './constants'
-
-import { inputHasErrors, containsFormdata } from './validators'
-import { objectToArrayBuffer } from './parsers'
+import { objectToArrayBuffer, parseRangeHeader } from './parsers'
+import {
+  appendLog,
+  disableInputs,
+  enableInputs,
+  generateHyperlink,
+  portInput,
+  printAxiosProgress,
+  refreshTunnelStatus,
+  tunnelToggleButton,
+  usernameInput
+} from './uiHelpers'
+import { containsFormdata, inputHasErrors } from './validators'
 
 // State variables
 let isTunnelling = false
@@ -40,15 +35,32 @@ const intitiateSocket = () => {
 }
 
 /** @param {LocalhostTunnel.ClientRequest} serverRequest */
-function preprocessRequest(serverRequest) {
-  const { headers, requestId: formadataId } = serverRequest
+const preProcessContentRange = serverRequest => {
+  const {
+    headers: { range }
+  } = serverRequest
 
-  if (headers['range']) {
-    const range = headers['range'].split('=')[1].split('-')
-    if (!range[1])
-      serverRequest.headers['range'] += parseInt(range[0]) + streamChunkSize
+  if (range) {
+    const [rangeStart, rangeEnd] = parseRangeHeader(range)
+
+    if (rangeEnd) {
+      if (rangeEnd - rangeStart > streamChunkSize) {
+        const newRange = `bytes=${rangeStart}-${rangeStart + streamChunkSize}`
+        serverRequest.headers.range = newRange
+      }
+    } else serverRequest.headers.range += rangeStart + streamChunkSize
+    // TODO: min(rangeStart + streamChunkSize, fileSize)
   }
+  return serverRequest
+}
 
+/** @param {LocalhostTunnel.ClientRequest} serverRequest */
+function preprocessRequest(serverRequest) {
+  preProcessContentRange(serverRequest)
+
+  const { headers, requestId: formadataId } = serverRequest
+  if (!containsFormdata(headers)) return tunnelLocalhostToServer(serverRequest)
+  //TODO: pure return
   socket.on(formadataId, socketOnFileReceived)
 
   /** @type {Express.Multer.File[]} */
@@ -143,16 +155,20 @@ async function tunnelLocalhostToServer(clientRequest) {
  * @param {string} responseId
  */
 function sendResponseToServer(localhostResponse, responseId) {
-  const { status, headers, data, config } = localhostResponse
-  const dataByteLength = data.byteLength
+  const {
+    status,
+    headers,
+    data,
+    config: {
+      headers: { range }
+    }
+  } = localhostResponse
 
-  const reqHeaders = /** @type {IncomingHttpHeaders}*/ (config.headers)
+  const dataByteLength = data.byteLength
 
   // PARTIAL CONTENT
   if (status === 206) {
-    const range = reqHeaders['range'].split('=')[1].split('-'),
-      startByte = parseInt(range[0]),
-      endByte = parseInt(range[1])
+    const [startByte, endByte] = parseRangeHeader(range)
 
     headers['accept-ranges'] = 'bytes'
     headers['content-range'] = `bytes ${startByte}-${endByte}/${maxStreamSize}`
@@ -215,7 +231,6 @@ function getFormdata(req) {
 }
 
 // UI helper functions
-
 
 function toggleTunnel() {
   if (isTunnelling) socket.disconnect()

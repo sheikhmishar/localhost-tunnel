@@ -7,3 +7,10 @@ export const objectToArrayBuffer = object => {
 
   return buffer
 }
+
+/** @param {string} range */
+export const parseRangeHeader = range =>
+  range
+    .split('=')[1]
+    .split('-')
+    .map(range => parseInt(range))

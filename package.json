@@ -24,7 +24,10 @@
   "license": "MIT",
   "main": "server.js",
   "scripts": {
-    "test": "mocha test.js",
+    "test": "nodemon -x \"npm run test:server && npm run test:client\"",
+    "test:server": "mocha \"./{,!(views|node_modules)/**}/*.test.js\"",
+    "test:client": "rundll32 url.dll,FileProtocolHandler http://localhost:5000/test && npm run watch:test",
+    "test:servern": "mocha \"./@(controllers|models|helpers)/**/*.test.js\"",
     "build": "npm run build:heroku --prefix views",
     "build:dev": "npm run build:dev --prefix views",
     "postinstall": "npm i --prefix views",
@@ -43,8 +46,12 @@
   },
   "optionalDependencies": {
     "@types/express": "^4.17.8",
+    "@types/mocha": "^8.0.3",
     "@types/multer": "^1.4.4",
     "@types/socket.io": "^2.1.11",
     "@types/socket.io-client": "^1.4.33"
+  },
+  "devDependencies": {
+    "mocha": "^8.1.3"
   }
 }

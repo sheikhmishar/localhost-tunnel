@@ -133,6 +133,10 @@ async function tunnelLocalhostToServer(clientRequest) {
       localhostResponse =
         /** @type {Axios.Error}*/ (localhostResponseError).response
     }
+    // const localhostResponse = await makeRequestToLocalhost(clientRequest).catch(
+    //   /** @param {Axios.Error} localhostResponseError */
+    //   localhostResponseError => localhostResponseError.response
+    // )
 
     const { status } = localhostResponse
     const method = localhostResponse.config.method.toUpperCase()
@@ -157,6 +161,7 @@ async function tunnelLocalhostToServer(clientRequest) {
   }
 }
 
+// TODO: add axios map file
 /**
  * @param {Axios.Response} localhostResponse
  * @param {string} responseId
@@ -167,6 +172,7 @@ function sendResponseToServer(localhostResponse, responseId) {
     headers,
     data,
     config: {
+      // FIXME: config doesnt exist in case of error eg./sock/*
       url,
       headers: { range }
     }

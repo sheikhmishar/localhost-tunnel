@@ -1,5 +1,6 @@
 const socketIo = require('socket.io')
 const express = require('express')
+const cors = require('cors')
 const path = require('path')
 const http = require('http')
 const router = require('./controllers/routes')
@@ -11,8 +12,17 @@ const server = http.createServer(app)
 const io = socketIo(server, { path: '/sock' })
 const viewsDir = path.join(__dirname, 'views', 'build')
 const vendorDir = path.join(__dirname, 'views', 'src', 'js', 'vendor')
+/** @type {Express.Cors.Options} */
+const corsConfig = {
+  credentials: true,
+  optionsSuccessStatus: 204,
+  origin: true,
+  maxAge: 60 * 60
+}
+const corsInstance = cors(corsConfig)
 
 if (process.env.NODE_ENV !== 'production') app.use(middlewares.headersInspector)
+app.use(corsInstance)
 app.use(express.static(viewsDir))
 app.use(express.static(vendorDir))
 app.use(express.raw())

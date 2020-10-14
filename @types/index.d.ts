@@ -9,6 +9,7 @@ import {
   AxiosResponse,
   AxiosError
 } from './axios'
+import { CorsOptions, CorsOptionsDelegate } from 'cors'
 
 declare global {
   const axios: AxiosStatic
@@ -72,6 +73,10 @@ declare global {
       method: HTTPMethods
     }
     interface Response {}
+    namespace Cors {
+      interface Options extends CorsOptions {}
+      interface OptionDelegate extends CorsOptionsDelegate {}
+    }
   }
 
   namespace LocalhostTunnel {

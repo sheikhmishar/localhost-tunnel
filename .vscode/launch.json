@@ -9,6 +9,8 @@
 			"request": "attach",
 			"name": "Attach",
 			"port": 9229,
+			"preLaunchTask": "watch:debug",
+			"postDebugTask": "terminate:all",
 			"skipFiles": [
 				"<node_internals>/**"
 			]

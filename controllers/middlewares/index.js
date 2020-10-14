@@ -7,6 +7,7 @@ if (process.env.NODE_ENV !== 'production') {
 const headersInspector = (req, _, next) => {
   const headers = JSON.stringify(req.headers, null, 2)
   console.log(chalk.greenBright(headers))
+  console.log(chalk.redBright(req.path))
   next()
 }
 

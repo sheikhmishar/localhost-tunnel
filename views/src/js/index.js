@@ -35,6 +35,7 @@ const intitiateSocket = () => {
   socket.on('request', preprocessRequest)
 }
 
+// FIXME: breaks while using reverse proxy
 /** @param {LocalhostTunnel.ClientRequest} serverRequest */
 const preProcessContentRange = serverRequest => {
   const {
@@ -187,8 +188,8 @@ function sendResponseToServer(localhostResponse, responseId) {
 
     // FIXME: Download accelerators cannot open more than one connections
   }
-  // TODO: REDIRECT
-  else if ([301, 303, 307, 308].includes(status)) {
+  // TODO: REDIRECT ON FETCH API
+  else if ([301, 302, 303, 307, 308].includes(status)) {
   }
 
   socket.emit(responseId, { status, headers, dataByteLength })

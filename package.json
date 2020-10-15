@@ -24,7 +24,7 @@
   "license": "MIT",
   "main": "server.js",
   "scripts": {
-    "test": "nodemon -x \"npm run test:server && npm run test:client\"",
+    "test": "nodemon -i views -x \"npm run test:server && npm run test:client\"",
     "test:server": "mocha \"./{,!(views|node_modules)/**}/*.test.js\"",
     "test:server:alt": "mocha \"./@(controllers|models|helpers)/**/*.test.js\"",
     "test:client": "node -e \"require('./views/node_modules/opn')('http://localhost:5000/test')\" && npm run test:watch --prefix views",

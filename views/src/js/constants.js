@@ -11,3 +11,6 @@ export const serverURL = location.host,
   socketWatchURL = `${socketProtocol}//${serverURL}/watch`,
   isLocalhostRoot =
     location.hostname === 'localhost' && location.origin + '/' === location.href
+
+// IF :PORT, then /username/path,
+// ELSE username.domain.ext/path

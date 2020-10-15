@@ -32,6 +32,7 @@
     "build:dev": "npm run build:dev --prefix views",
     "postinstall": "npm i --prefix views",
     "watch": "concurrently \"nodemon -i views\" \"npm run watch --prefix views\"",
+    "watch:server": "nodemon -i views",
     "watch:debug": "nodemon -e js,json -x \"node --inspect-brk server.js\""
   },
   "engines": {

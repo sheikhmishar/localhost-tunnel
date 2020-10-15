@@ -11,7 +11,7 @@ const scriptUrls = [
       mocha.checkLeaks()
     `
   }),
-  '/sock/socket.io.js',
+  '/io/socket.io.js',
   '/axios.min.js'
 ]
 const callback = () => import('./js/index.test').then()

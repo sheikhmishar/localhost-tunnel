@@ -19,7 +19,7 @@ import {
   printAxiosProgress,
   refreshTunnelStatus,
   tunnelToggleButton,
-  usernameInput
+  usernameInput // TODO: random username
 } from './uiHelpers'
 import { containsFormdata, inputHasErrors } from './validators'
 
@@ -110,6 +110,7 @@ const makeRequestToLocalhost = req => {
     url,
     data,
     withCredentials: true,
+    // validateStatus: _ => true,
     responseType: 'arraybuffer'
   }
 
@@ -125,18 +126,10 @@ async function tunnelLocalhostToServer(clientRequest) {
   const { path, requestId: responseId } = clientRequest
 
   try {
-    /** @type {Axios.Response} */
-    let localhostResponse
-    try {
-      localhostResponse = await makeRequestToLocalhost(clientRequest)
-    } catch (localhostResponseError) {
-      localhostResponse =
-        /** @type {Axios.Error}*/ (localhostResponseError).response
-    }
-    // const localhostResponse = await makeRequestToLocalhost(clientRequest).catch(
-    //   /** @param {Axios.Error} localhostResponseError */
-    //   localhostResponseError => localhostResponseError.response
-    // )
+    const localhostResponse = await makeRequestToLocalhost(clientRequest).catch(
+      /** @param {Axios.Error} localhostResponseError */
+      localhostResponseError => localhostResponseError.response
+    )
 
     const { status } = localhostResponse
     const method = localhostResponse.config.method.toUpperCase()
@@ -147,7 +140,8 @@ async function tunnelLocalhostToServer(clientRequest) {
     appendLog(`${method} ${status} ${url} -> ${tunnelUrl}`)
     sendResponseToServer(localhostResponse, responseId)
   } catch (e) {
-    // TODO: print in dev
+    // TODO: print in dev only and make robust error handling
+    // console.log('res err', e)
     sendResponseToServer(
       {
         status: 500,
@@ -172,7 +166,7 @@ function sendResponseToServer(localhostResponse, responseId) {
     headers,
     data,
     config: {
-      // FIXME: config doesnt exist in case of error eg./sock/*
+      // FIXME: config doesnt exist in case of error eg. CORS
       url,
       headers: { range }
     }
@@ -191,10 +185,7 @@ function sendResponseToServer(localhostResponse, responseId) {
     headers['accept-ranges'] = 'bytes'
     headers['content-range'] = `bytes ${startByte}-${endByte}/${originalSize}`
 
-    // FIXME: I used a trick to fool browser. I'v set max size to 1GB
-    // Download accelerators cannot open more than one connections
-    // (maxStreamSize) should be total_length
-    // can use an object to store prev total_length values
+    // FIXME: Download accelerators cannot open more than one connections
   }
   // TODO: REDIRECT
   else if ([301, 303, 307, 308].includes(status)) {
@@ -208,7 +199,7 @@ function sendResponseToServer(localhostResponse, responseId) {
     chunk = new ArrayBuffer(0),
     i = 0
 
-  // TODO: on ('CONTINUE.id')
+  // const sendChunkedResponse = (garbageClean) => // TODO
   const sendChunkedResponse = () => {
     if (i === totalChunks) {
       // delete localhostResponse.data // TODO
@@ -225,6 +216,7 @@ function sendResponseToServer(localhostResponse, responseId) {
 
     i++
   }
+  // TODO: on ('CONTINUE.id')
   socket.on(responseId, sendChunkedResponse)
 }
 

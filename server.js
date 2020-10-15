@@ -9,9 +9,12 @@ const sockets = require('./controllers/socket')
 
 const app = express()
 const server = http.createServer(app)
-const io = socketIo(server, { path: '/sock' })
-const viewsDir = path.join(__dirname, 'views', 'build')
-const vendorDir = path.join(__dirname, 'views', 'src', 'js', 'vendor')
+const viewsDir = path.join(__dirname, './views/build')
+const vendorDir = path.join(__dirname, './views/src/js/vendor')
+const socketIoClientDir = path.join(
+  __dirname,
+  './node_modules/socket.io-client/dist'
+)
 /** @type {Express.Cors.Options} */
 const corsConfig = {
   credentials: true,
@@ -20,9 +23,28 @@ const corsConfig = {
   maxAge: 60 * 60
 }
 const corsInstance = cors(corsConfig)
+const allowedHeaders =
+  ',content-type,authorization,cache-control,upgrade-insecure-requests'
+/** @param {HTTP.IncomingMessage} req @param {HTTP.ServerResponse} res */
+const handlePreflightRequest = (req, res) => {
+  res.writeHead(200, {
+    'Access-Control-Allow-Headers':
+      Object.keys(req.headers).join(',') + allowedHeaders,
+    'Access-Control-Allow-Origin': req.headers.origin,
+    'Access-Control-Allow-Credentials': 'true'
+  })
+  res.end()
+}
+// @ts-ignore
+const io = socketIo(server, {
+  path: '/sock',
+  serveClient: false,
+  handlePreflightRequest
+})
 
 if (process.env.NODE_ENV !== 'production') app.use(middlewares.headersInspector)
 app.use(corsInstance)
+app.use('/io', express.static(socketIoClientDir))
 app.use(express.static(viewsDir))
 app.use(express.static(vendorDir))
 app.use(express.raw())

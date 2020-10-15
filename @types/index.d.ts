@@ -14,8 +14,14 @@ import { CorsOptions, CorsOptionsDelegate } from 'cors'
 declare global {
   const axios: AxiosStatic
   const chai: { assert: typeof assert }
-  type IncomingHttpHeaders = http.IncomingHttpHeaders
+  type IncomingHttpHeaders = HTTP.IncomingHttpHeaders
   type HTTPMethods = AxiosMethod
+
+  namespace HTTP {
+    interface IncomingHttpHeaders extends http.IncomingHttpHeaders {}
+    interface IncomingMessage extends http.IncomingMessage {}
+    interface ServerResponse extends http.ServerResponse {}
+  }
 
   namespace Axios {
     type data =

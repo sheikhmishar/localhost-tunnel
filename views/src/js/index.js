@@ -1,6 +1,7 @@
 import setOnLoad from '../../lib/onloadPolyfill'
 import {
   isLocalhostRoot,
+  hasPort,
   maxStreamSize,
   serverProtocol,
   serverURL,
@@ -111,7 +112,7 @@ const makeRequestToLocalhost = req => {
     url,
     data,
     withCredentials: true,
-    // validateStatus: _ => true,
+    // validateStatus: _ => true, // TODO: uncomment
     responseType: 'arraybuffer'
   }
 
@@ -130,13 +131,15 @@ async function tunnelLocalhostToServer(clientRequest) {
     const localhostResponse = await makeRequestToLocalhost(clientRequest).catch(
       /** @param {Axios.Error} localhostResponseError */
       localhostResponseError => localhostResponseError.response
-    )
+    ) // TODO: dont catch
 
     const { status } = localhostResponse
     const method = localhostResponse.config.method.toUpperCase()
     const url = generateHyperlink(localhostResponse.config.url)
     const tunnelUrl = generateHyperlink(
-      `${serverProtocol}//${serverURL}/${usernameInput.value}${path}`
+      hasPort
+        ? `${serverProtocol}//${serverURL}/${usernameInput.value}${path}`
+        : `${serverProtocol}//${usernameInput.value}.${serverURL}${path}`
     )
     appendLog(`${method} ${status} ${url} -> ${tunnelUrl}`)
     sendResponseToServer(localhostResponse, responseId)

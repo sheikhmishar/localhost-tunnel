@@ -1,4 +1,4 @@
-import { serverURL, serverProtocol, maxLogLength } from './constants'
+import { serverURL, serverProtocol, maxLogLength, hasPort } from './constants'
 
 // HTML elements
 const dummy = document.createElement('div')
@@ -46,7 +46,9 @@ export const refreshTunnelStatus = isTunnelling => {
   // TODO: Permanently view current tunnel address
   if (isTunnelling) {
     const tunnelLink = generateHyperlink(
-      `${serverProtocol}//${serverURL}/${usernameInput.value}/`
+      hasPort
+        ? `${serverProtocol}//${serverURL}/${usernameInput.value}/`
+        : `${serverProtocol}//${usernameInput.value}.${serverURL}/`
     )
     appendLog(`Tunnel is running at port ${portInput.value}`)
     appendLog(`Your localhost is now available at ${tunnelLink}`)

@@ -4,6 +4,7 @@ export const streamChunkSize = 1024 * 1024 * 2, // 2MB
 
 // Server variables
 export const serverURL = location.host,
+  hasPort = location.host.includes(':'),
   serverProtocol = location.protocol || 'http:',
   socketProtocol = serverProtocol === 'http:' ? 'ws:' : 'wss:',
   validatorURL = `${serverProtocol}//${serverURL}/validateusername`,
@@ -11,6 +12,3 @@ export const serverURL = location.host,
   socketWatchURL = `${socketProtocol}//${serverURL}/watch`,
   isLocalhostRoot =
     location.hostname === 'localhost' && location.origin + '/' === location.href
-
-// IF :PORT, then /username/path,
-// ELSE username.domain.ext/path

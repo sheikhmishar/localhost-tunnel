@@ -67,4 +67,6 @@ export const appendLog = log => {
   logWrapper.prepend(newDomElement)
 
   if (logWrapper.childElementCount > maxLogLength) logWrapper.lastChild.remove()
+
+  return newDomElement
 }

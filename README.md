@@ -1,7 +1,10 @@
 # PROJECT LOCALHOST-TUNNEL
 
-## Introduction
+## What's this?
 ### A simple web app to make local http server live on the internet without installing any tool on the client side
+
+## Introduction
+Have you ever used `ngrok` like services, where you can make your localhost web server go online? Guess what!!! It requires installing third party app in your device, which is a hasstle. Also, sometimes, it requires additional configurations. In worst case, the device or platform you're using may not even support it. But, almost every smart device today has a web browser. Here is an app for you to do something similar without the need of installing any additional app. Just open your browser, type the necesssary infos and you're done.
 
 ## Features:
 1. Make any HTTP/S request and get response as one would do in local server
@@ -31,28 +34,29 @@
 3. Max content-size is limited to your RAM size
 4. CORS(Cross Origin Resource Sharing) must be enabled on the client localhost server
 5. Redirect hasn't been implemented yet
+6. Sometimes, weird caching issue happens on production, which doesn't happen in my local machine
 
 ## How to use (For Users):
-1. Run your localhost http/s project that your want to be live
-2. Make sure that you enable CORS. If you cannot enable CORS programmatically for some reason, disable CORS from browser. For chrome, you can do this using:
+1. Run your localhost http/s project that your want to be live. (example,`VSCode live server`)
+2. Make sure that you enable CORS. If you cannot enable CORS programmatically for some reason, disable CORS from browser.(`VSCode live server` has this built-in) For chrome, you can do this using:
 ```bash
 chrome --incognito --disable-web-security --user-data-dir="/tmp/chrome_dev_temp" --allow-file-access-from-files --disable-site-isolation-trials
 ```
-3. Open your browser and open the link for localhost-tunnel
-4. Give a username and PORT number of the running project and click `start tunnel`
+3. Open your browser and open the link for [localhost-tunnel](http://tunnel.sheikhmishar.me)
+4. Give a username(according to your wish) and PORT number(of the running project, ex. 5500) and click `start tunnel`
 5. Follow the log. If everything goes ok, you will be given a link, where your site is live on the internet.
 
 ## How to use (For Developers):
-1. Open terminal in the project directory and type:
+1. Clone the repo, open terminal in the project directory and type:
 ```bash
 npm i && npm build && npm start
 ```
-2. Use a Local DNS. I suggest using Technitium DNS and add a local domain according to your preference. Let's assume you have a domain `tunnel.me`
+2. Use a Local DNS. I suggest using `Technitium DNS` and add a local domain according to your preference. Let's assume you have a domain `tunnel.me`
 3. Use `nginx` or any web server for reverse-proxy and sub-domain support. Configure it according to the next section (`nginx config`).
-4. Open `http://domain_name.ext` in browser. For example, `http://tunnel.me`
+4. Open `http://domain_name.ext` in browser. For example, `http://tunnel.lan`
 5. Set a username (ex. sony) and HTTP/S port number (ex. 3000) of the running localhost project you want to tunnel
-6. On the screen, there is a logger. If everything is okay, it will give a clickable link (ex. http://sony.tunnel.me), where the localhost server is being tunnelled
-7. Now any request you make at the given address (ex. GET http://sony.tunnel.me/updates) will be tunnelled to the localhost address (ex. GET http://localhost:3000/updates)
+6. On the screen, there is a logger. If everything is okay, it will give a clickable link (ex. http://sony.tunnel.lan), where the localhost server is being tunnelled
+7. Now any request you make at the given address (ex. GET http://sony.tunnel.lan/updates) will be tunnelled to the localhost address (ex. GET http://localhost:3000/updates)
 
 ## `nginx` config
 ```bash
@@ -102,6 +106,6 @@ server {
 }
 ```
 
-### A demo has been hosted at http://sheikhmishar.me/
+### A demo has been hosted at http://tunnel.sheikhmishar.me/
 
 ### Tons of credits go to: [Omran Jamal](https://github.com/omranjamal). Whole project was his idea

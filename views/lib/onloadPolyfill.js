@@ -1,3 +1,10 @@
+/*!
+ * localhost-tunnel
+ * Copyright(c) 2020 sheikhmishar
+ * Copyright(c) 2020 omranjamal
+ * GPLv3 Licensed
+ */
+
 /** @param {HTMLScriptElement | Window} elem
  *  @param {() => any} callback */
 const setOnLoad = (elem, callback) => {

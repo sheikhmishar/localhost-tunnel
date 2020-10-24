@@ -1,3 +1,10 @@
+/*!
+ * localhost-tunnel
+ * Copyright(c) 2020 sheikhmishar
+ * Copyright(c) 2020 omranjamal
+ * GPLv3 Licensed
+ */
+
 const { is } = require('type-is')
 const { validTextTypes } = require('../../helpers')
 const textParser = (req, res, next) => {

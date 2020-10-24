@@ -1,3 +1,10 @@
+/*!
+ * localhost-tunnel
+ * Copyright(c) 2020 sheikhmishar
+ * Copyright(c) 2020 omranjamal
+ * GPLv3 Licensed
+ */
+
 const concatStream = require('concat-stream')
 const { log } = require('../../helpers')
 const { is } = require('type-is')

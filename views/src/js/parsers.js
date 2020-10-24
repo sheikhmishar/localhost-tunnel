@@ -1,3 +1,10 @@
+/*!
+ * localhost-tunnel
+ * Copyright(c) 2020 sheikhmishar
+ * Copyright(c) 2020 omranjamal
+ * GPLv3 Licensed
+ */
+
 /** @param {Object<string, object>} object */
 export const objectToArrayBuffer = object => {
   const json = JSON.stringify(object)

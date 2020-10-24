@@ -1,3 +1,10 @@
+/*!
+ * localhost-tunnel
+ * Copyright(c) 2020 sheikhmishar
+ * Copyright(c) 2020 omranjamal
+ * GPLv3 Licensed
+ */
+
 import setOnLoad from '../lib/onloadPolyfill'
 
 /** @typedef {{innerHTML?: string, url?: string} | string} scriptObject */

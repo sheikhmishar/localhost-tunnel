@@ -1,3 +1,10 @@
+/*!
+ * localhost-tunnel
+ * Copyright(c) 2020 sheikhmishar
+ * Copyright(c) 2020 omranjamal
+ * GPLv3 Licensed
+ */
+
 /** @type {Chalk} */ let chalk
 if (process.env.NODE_ENV !== 'production') {
   chalk = require('../../views/node_modules/chalk').default

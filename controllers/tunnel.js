@@ -1,3 +1,10 @@
+/*!
+ * localhost-tunnel
+ * Copyright(c) 2020 sheikhmishar
+ * Copyright(c) 2020 omranjamal
+ * GPLv3 Licensed
+ */
+
 const { findClientSocketByUsername } = require('../models/ClientSocket')
 const uid = /** @type {() => string} */ (require('uuid').v1)
 const { byteToString, log, sanitizeHeaders } = require('../helpers')

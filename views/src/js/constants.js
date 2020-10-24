@@ -1,3 +1,10 @@
+/*!
+ * localhost-tunnel
+ * Copyright(c) 2020 sheikhmishar
+ * Copyright(c) 2020 omranjamal
+ * GPLv3 Licensed
+ */
+
 export const streamChunkSize = 1024 * 1024 * 2, // 2MB
   maxStreamSize = 1024 * 1024 * 1024, // 1GB
   maxLogLength = 20

@@ -78,10 +78,7 @@ const handleTunneling = (req, res) => {
     res.set('Content-Disposition', `inline; filename="${fileName}"`)
     res.contentType(headers['content-type'] || fileName)
 
-    if (!res.hasHeader('Last-Modified'))
-      res.set('Last-Modified', new Date().toUTCString())
-    if (!res.hasHeader('Cache-Control'))
-      res.set('Cache-Control', 'public, max-age=604800')
+    // TODO: prune 'Last-Modified' 'Cache-Control'
     if (!res.hasHeader('Content-Length'))
       res.set('Content-Length', dataByteLength.toString())
 

@@ -5,7 +5,7 @@
  * GPLv3 Licensed
  */
 
-import { serverURL, serverProtocol, maxLogLength, hasPort } from './constants'
+import { serverURL, serverProtocol, maxLogLength, noSubdomain } from './constants'
 
 // HTML elements
 const dummy = document.createElement('div')
@@ -53,7 +53,7 @@ export const refreshTunnelStatus = isTunnelling => {
   // TODO: Permanently view current tunnel address
   if (isTunnelling) {
     const tunnelLink = generateHyperlink(
-      hasPort
+      noSubdomain
         ? `${serverProtocol}//${serverURL}/${usernameInput.value}/`
         : `${serverProtocol}//${usernameInput.value}.${serverURL}/`
     )

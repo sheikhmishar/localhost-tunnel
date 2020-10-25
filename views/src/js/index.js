@@ -8,7 +8,7 @@
 import setOnLoad from '../../lib/onloadPolyfill'
 import {
   isLocalhostRoot,
-  hasPort,
+  noSubdomain,
   maxStreamSize,
   serverProtocol,
   serverURL,
@@ -40,7 +40,7 @@ let socket
 const intitiateSocket = () => {
   socket = io.connect(socketTunnelURL, { path: '/sock' })
   socket.on('connect', () => socket.emit('username', usernameInput.value))
-  socket.on('request', preprocessRequest)
+  socket.on('request', tunnelLocalhostToServer)
 }
 
 // FIXME: breaks while using reverse proxy
@@ -52,12 +52,12 @@ const preProcessContentRange = serverRequest => {
   } = serverRequest
 
   if (range) {
-    const [rangeStart, rangeEnd] = parseRangeHeader(range) // TODO: attach
+    const [rangeStart, rangeEnd] = parseRangeHeader(range)
 
     const maxRange = rangeStart + streamChunkSize
     const safeRange = Math.min(
       maxRange,
-      responseSizeCache[path] ? responseSizeCache[path] - 1 : maxRange
+      responseSizeCache[path] - 1 || maxRange
     )
 
     if (rangeEnd) {
@@ -70,39 +70,41 @@ const preProcessContentRange = serverRequest => {
   return serverRequest
 }
 
-/** @param {LocalhostTunnel.ClientRequest} serverRequest */
-function preprocessRequest(serverRequest) {
-  preProcessContentRange(serverRequest)
+/** @param {LocalhostTunnel.ClientRequest} serverRequest
+ * @returns {Promise<LocalhostTunnel.ClientRequest>} */
+const preprocessRequest = serverRequest =>
+  new Promise(resolve => {
+    serverRequest = preProcessContentRange(serverRequest)
+    const { headers, requestId: formadataId } = serverRequest
+    if (!containsFormdata(headers)) return resolve(serverRequest)
 
-  const { headers, requestId: formadataId } = serverRequest
-  if (!containsFormdata(headers)) return tunnelLocalhostToServer(serverRequest)
-  //TODO: pure return
-  socket.on(formadataId, socketOnFileReceived)
+    /** @type {Express.Multer.File[]} */
+    const receivedFiles = []
+    // , i = 0
 
-  /** @type {Express.Multer.File[]} */
-  var receivedFiles = []
-  // , i = 0
+    /** @param {Express.Multer.File} file */
+    const socketOnFileReceived = file => {
+      if (file.data && file.data === 'DONE') {
+        socket.removeAllListeners(formadataId)
+        serverRequest.files = receivedFiles
+        // i++
 
-  /** @param {Express.Multer.File} file */
-  function socketOnFileReceived(file) {
-    if (file.data && file.data === 'DONE') {
-      socket.removeAllListeners(formadataId)
-      serverRequest.files = receivedFiles
-      // i++
+        return resolve(serverRequest)
+      }
 
-      return tunnelLocalhostToServer(serverRequest)
+      receivedFiles.push(file)
+
+      // TODO: chunk push and add acknowledgement delay
+      // if (file.buffer) appendBuffer(receivedFiles[i].buffer, file.buffer)
+      // else {
+      //   receivedFiles[i] = file
+      //   receivedFiles[i].buffer = new ArrayBuffer(file.size)
+      // }
     }
 
-    receivedFiles.push(file)
-
-    // TODO: chunk push and add acknowledgement delay
-    // if (file.buffer) appendBuffer(receivedFiles[i].buffer, file.buffer)
-    // else {
-    //   receivedFiles[i] = file
-    //   receivedFiles[i].buffer = new ArrayBuffer(file.size)
-    // }
-  }
-}
+    // TODO: add timer and garbage collect
+    socket.on(formadataId, socketOnFileReceived)
+  })
 
 /** @param {LocalhostTunnel.ClientRequest} req */
 const makeRequestToLocalhost = req => {
@@ -119,7 +121,7 @@ const makeRequestToLocalhost = req => {
     url,
     data,
     withCredentials: true,
-    // validateStatus: _ => true, // TODO: uncomment
+    validateStatus: _ => true,
     responseType: 'arraybuffer'
   }
 
@@ -132,41 +134,41 @@ const makeRequestToLocalhost = req => {
 
 /** @param {LocalhostTunnel.ClientRequest} clientRequest */
 async function tunnelLocalhostToServer(clientRequest) {
+  clientRequest = await preprocessRequest(clientRequest)
+
   const { path, requestId: responseId } = clientRequest
 
   try {
-    const localhostResponse = await makeRequestToLocalhost(clientRequest).catch(
-      /** @param {Axios.Error} localhostResponseError */
-      localhostResponseError => localhostResponseError.response
-    ) // TODO: dont catch
+    const localhostResponse = await makeRequestToLocalhost(clientRequest)
 
-    const { status } = localhostResponse
-    const method = localhostResponse.config.method.toUpperCase()
-    const url = generateHyperlink(localhostResponse.config.url)
+    const { status, config } = localhostResponse
+    const method = config.method.toUpperCase()
+    const url = generateHyperlink(config.url)
     const tunnelUrl = generateHyperlink(
-      hasPort
+      noSubdomain
         ? `${serverProtocol}//${serverURL}/${usernameInput.value}${path}`
         : `${serverProtocol}//${usernameInput.value}.${serverURL}${path}`
     )
     appendLog(`${method} ${status} ${url} -> ${tunnelUrl}`)
     sendResponseToServer(localhostResponse, responseId)
   } catch (e) {
-    // TODO: print in dev only and make robust error handling
-    // console.log('res err', e)
+    if (isLocalhostRoot)
+      console.error('AXIOS RES ERROR', e, JSON.parse(JSON.stringify(e)))
+
+    const { message = '505 Client Error', config = {} } = e
     sendResponseToServer(
       {
-        status: 500,
-        statusText: '505 Client Error',
-        config: {},
+        status: 505,
+        statusText: message,
+        config: config,
         headers: clientRequest.headers,
-        data: objectToArrayBuffer({ message: '505 Client Error' })
+        data: objectToArrayBuffer({ message })
       },
       responseId
     )
   }
 }
 
-// TODO: add axios map file
 /**
  * @param {Axios.Response} localhostResponse
  * @param {string} responseId
@@ -177,7 +179,6 @@ function sendResponseToServer(localhostResponse, responseId) {
     headers,
     data,
     config: {
-      // FIXME: config doesnt exist in case of error eg. CORS
       url,
       headers: { range }
     }

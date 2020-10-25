@@ -22,7 +22,7 @@ const handleTunneling = (req, res) => {
   const { username } = req.params
   const clientSocket = findClientSocketByUsername(username)
   if (!clientSocket)
-    return res.status(404).json({ message: 'Client not available' }) // TODO: 404 html
+    return res.status(404).json({ message: 'Client not available' })
 
   const files = /**@type {Express.Multer.File[]} */ (req.files || []),
     unique_id = uid(),
@@ -49,7 +49,19 @@ const handleTunneling = (req, res) => {
   // Redirecting all client localhost responses to requester
   const responseId = requestId // TODO: `RESPONSE.${unique_id}`
   let responseLength = 0
-  const continueReceivingData = () => clientSocket.emit(responseId)
+  const continueReceivingData = () => clientSocket.emit(responseId, true)
+  /** @param {string} eventName EventName*/
+  const stopReceivingData = eventName => () => {
+    res.removeAllListeners('error')
+    res.removeAllListeners('close')
+    res.removeAllListeners('finish')
+
+    log('STOP res', eventName, res.req.originalUrl, responseId)
+    if (clientSocket.listeners(responseId).length) {
+      clientSocket.emit(responseId, false)
+      clientSocket.removeAllListeners(responseId)
+    }
+  }
 
   /** @param {LocalhostTunnel.ClientResponse} clientSocketResponse */
   const onClientSocketResponse = clientSocketResponse => {
@@ -66,11 +78,10 @@ const handleTunneling = (req, res) => {
       // Else pause until data buffer is drained
       if (res.write(data)) continueReceivingData()
       else res.once('drain', continueReceivingData)
-      res.once('error', () => log('res err', res.req.originalUrl, responseId)) // TODO: garbage collect client
-      res.once('close', () => log('res close', res.req.originalUrl, responseId)) // TODO: garbage collect client
-      res.once('finish', () =>
-        log('res finish', res.req.originalUrl, responseId)
-      ) // TODO: garbage collect client
+
+      res.once('error', stopReceivingData('error')) // TODO: test garbage collect client
+      res.once('close', stopReceivingData('close'))
+      res.once('finish', stopReceivingData('finish'))
 
       if (process.env.NODE_ENV !== 'production') {
         responseLength += Buffer.byteLength(data, 'binary')

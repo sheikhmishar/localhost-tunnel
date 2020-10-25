@@ -5,7 +5,12 @@
  * GPLv3 Licensed
  */
 
-import { serverURL, serverProtocol, maxLogLength, noSubdomain } from './constants'
+import {
+  serverURL,
+  serverProtocol,
+  maxLogLength,
+  noSubdomain
+} from './constants'
 
 // HTML elements
 const dummy = document.createElement('div')
@@ -27,7 +32,7 @@ export const printAxiosProgress = (e, url) => {
 
   const { start, end, responseURL } = e.target,
     percent = lengthComputable ? Math.round((loaded * 100) / total) : 101,
-    type = responseURL ? 'UPLOAD' : 'DOWNLOAD'
+    type = `FETCHER ${responseURL ? 'DOWNLOAD' : 'UPLOAD'}`
 
   console.log(type, url, start, end, percent, '%')
   /* TODO: get chunked response using fetch API.

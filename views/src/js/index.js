@@ -211,14 +211,26 @@ function sendResponseToServer(localhostResponse, responseId) {
     chunk = new ArrayBuffer(0),
     i = 0
 
-  // const sendChunkedResponse = (garbageClean) => // TODO
-  const sendChunkedResponse = () => {
-    if (i === totalChunks) {
-      // delete localhostResponse.data // TODO
-      // localhostResponse = null
+  /** @param {boolean} continues */
+  const sendChunkedResponse = continues => {
+    if (!continues || i === totalChunks) {
+      // TODO: verify garbage collection
+      for (let key in localhostResponse) {
+        localhostResponse[key] = null
+        delete localhostResponse[key]
+      }
+      localhostResponse = null
+
+      if (isLocalhostRoot) {
+        if (continues) console.debug('STOPPED BEFORE SERVER', url)
+        else console.debug('STOP UPLOAD FROM SERVER SIGNAL', url)
+      }
+
       socket.emit(responseId, { data: 'DONE' })
       return socket.removeAllListeners(responseId)
     }
+
+    if (isLocalhostRoot) console.debug('UPLOAD TO SERVER', url, i)
 
     startByte = i * streamChunkSize
     endByte = startByte + streamChunkSize
@@ -228,7 +240,6 @@ function sendResponseToServer(localhostResponse, responseId) {
 
     i++
   }
-  // TODO: on ('CONTINUE.id')
   socket.on(responseId, sendChunkedResponse)
 }
 

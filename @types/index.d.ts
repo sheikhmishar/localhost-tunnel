@@ -78,7 +78,8 @@ declare global {
     interface ErrorRequestHandler extends express.ErrorRequestHandler {}
     interface RequestHandler extends express.RequestHandler {}
     interface Request {
-      method: HTTPMethods
+      method: HTTPMethods,
+      _parsedUrl: URL
     }
     interface Response {}
     namespace Cors {

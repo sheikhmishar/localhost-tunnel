@@ -25,12 +25,17 @@ const handleTunneling = (req, res) => {
     return res.status(404).json({ message: 'Client not available' })
 
   const files = /**@type {Express.Multer.File[]} */ (req.files || []),
-    unique_id = uid(),
-    requestId = unique_id, // TODO: `REQUEST.${unique_id}`
-    { method, body } = req,
+    uniqueId = uid(),
+    requestId = uniqueId, // TODO: `REQUEST.${uniqueId}`
+    {
+      params: { 0: pathname },
+      method,
+      body,
+      _parsedUrl: { search }
+    } = req,
     headers = sanitizeHeaders(req.headers),
-    path = `/${req.params[0]}`,
-    fileName = path.endsWith('/') ? 'index.html' : path.split('/').pop()
+    path = `/${pathname}${search || ''}`,
+    fileName = `/${pathname}`.endsWith('/') ? 'index.html' : path.split('/').pop()
 
   /** @type {LocalhostTunnel.ServerRequest} */
   const request = {

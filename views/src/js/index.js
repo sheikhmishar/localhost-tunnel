@@ -136,7 +136,7 @@ const makeRequestToLocalhost = req => {
 async function tunnelLocalhostToServer(clientRequest) {
   clientRequest = await preprocessRequest(clientRequest)
 
-  const { path, requestId: responseId } = clientRequest
+  const { path, requestId: responseId, headers } = clientRequest
 
   try {
     const localhostResponse = await makeRequestToLocalhost(clientRequest)
@@ -155,13 +155,16 @@ async function tunnelLocalhostToServer(clientRequest) {
     if (isLocalhostRoot)
       console.error('AXIOS RES ERROR', e, JSON.parse(JSON.stringify(e)))
 
-    const { message = '505 Client Error', config = {} } = e
+    const { message = '500 Client Error', config = { headers: {} } } = e
     sendResponseToServer(
       {
-        status: 505,
+        status: 500,
         statusText: message,
-        config: config,
-        headers: clientRequest.headers,
+        config,
+        headers: {
+          ...headers,
+          'content-type': 'application/json'
+        },
         data: objectToArrayBuffer({ message })
       },
       responseId

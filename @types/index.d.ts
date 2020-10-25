@@ -1,7 +1,8 @@
 import http from 'http'
 import assert from 'assert'
 import express from 'express'
-import { Chalk as chalk } from '../views/node_modules/chalk'
+import { Chalk as chalk } from 'chalk'
+import morgan from 'morgan'
 import {
   AxiosStatic,
   AxiosRequestConfig,
@@ -16,6 +17,7 @@ declare global {
   const chai: { assert: typeof assert }
   type IncomingHttpHeaders = HTTP.IncomingHttpHeaders
   type HTTPMethods = AxiosMethod
+  type Morgan = typeof morgan
 
   namespace HTTP {
     interface IncomingHttpHeaders extends http.IncomingHttpHeaders {}

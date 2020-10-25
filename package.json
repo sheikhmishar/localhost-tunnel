@@ -31,8 +31,9 @@
     "build": "npm run build:heroku --prefix views",
     "build:dev": "npm run build:dev --prefix views",
     "postinstall": "npm i --prefix views",
-    "watch": "concurrently \"nodemon -i views\" \"npm run watch --prefix views\"",
+    "watch": "concurrently --handle-input -r npm:watch:server npm:watch:client",
     "watch:server": "nodemon -i views",
+    "watch:client": "npm run watch --prefix views",
     "watch:debug": "nodemon -e js,json -x \"node --inspect-brk server.js\""
   },
   "engines": {
@@ -55,6 +56,8 @@
     "@types/socket.io-client": "^1.4.33"
   },
   "devDependencies": {
-    "mocha": "^8.1.3"
+    "@types/morgan": "^1.9.1",
+    "mocha": "^8.1.3",
+    "morgan": "^1.10.0"
   }
 }

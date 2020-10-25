@@ -49,7 +49,11 @@ const io = socketIo(server, {
   handlePreflightRequest
 })
 
-if (process.env.NODE_ENV !== 'production') app.use(middlewares.headersInspector)
+if (process.env.NODE_ENV !== 'production') {
+  const logger = require('morgan')('dev')
+  app.use(middlewares.headersInspector)
+  app.use(logger)
+}
 app.use(corsInstance)
 app.use('/io', express.static(socketIoClientDir))
 app.use(express.static(viewsDir))

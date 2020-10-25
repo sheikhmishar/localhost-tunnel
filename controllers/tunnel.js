@@ -86,7 +86,7 @@ const handleTunneling = (req, res) => {
     res.contentType(headers['content-type'] || fileName)
 
     // TODO: prune 'Last-Modified' 'Cache-Control'
-    if (!res.hasHeader('Content-Length'))
+    if (!res.hasHeader('Content-Length') && dataByteLength)
       res.set('Content-Length', dataByteLength.toString())
 
     continueReceivingData()

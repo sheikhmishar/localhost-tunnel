@@ -18,4 +18,5 @@ export const serverURL = location.host,
   socketTunnelURL = `${socketProtocol}//${serverURL}/tunnel`,
   socketWatchURL = `${socketProtocol}//${serverURL}/watch`,
   isLocalhostRoot =
-    location.hostname === 'localhost' && location.origin + '/' === location.href
+    (location.hostname === 'localhost' || location.hostname.includes('.lan')) &&
+    location.origin + '/' === location.href

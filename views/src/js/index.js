@@ -54,7 +54,7 @@ const preProcessContentRange = serverRequest => {
   if (range) {
     const [rangeStart, rangeEnd] = parseRangeHeader(range)
 
-    const maxRange = rangeStart + streamChunkSize
+    const maxRange = rangeStart + streamChunkSize - 1
     const safeRange = Math.min(
       maxRange,
       responseSizeCache[path] - 1 || maxRange

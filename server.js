@@ -10,6 +10,7 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const http = require('http')
+const fs = require('fs')
 const router = require('./controllers/routes')
 const middlewares = require('./controllers/middlewares')
 const sockets = require('./controllers/socket')
@@ -56,12 +57,14 @@ app.use(middlewares.expressErrorHandler)
 const { PORT = 5000 } = process.env
 server.listen(PORT, () => console.log(`Server port ${PORT}`))
 
-const { onNewSocketConnection, onWatchSocketConnection } = sockets
-io.of('/tunnel').on('connection', onNewSocketConnection)
+const tunnelChannel = io.of('/tunnel')
+tunnelChannel.on('connection', sockets.onNewSocketConnection)
+
 if (process.env.NODE_ENV !== 'production') {
-  io.of('/watch').on('connection', onWatchSocketConnection)
-  const refreshClients = () => io.of('/watch').emit('refresh')
-  require('fs').watch(viewsDir, { recursive: true }, () =>
-    setTimeout(refreshClients, 500)
+  const watchChannel = io.of('/watch')
+  watchChannel.on('connection', sockets.onWatchSocketConnection)
+
+  fs.watch(viewsDir, { recursive: true }, () =>
+    setTimeout(() => watchChannel.emit('refresh'), 500)
   )
 }

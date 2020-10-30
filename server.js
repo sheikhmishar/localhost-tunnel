@@ -54,8 +54,19 @@ app.use(router)
 app.use(middlewares.unknownRouteHandler)
 app.use(middlewares.expressErrorHandler)
 
-const { PORT = 5000 } = process.env
-server.listen(PORT, () => console.log(`Server port ${PORT}`))
+let PORT = parseInt(process.env.PORT) || 5000
+server.listen(PORT)
+
+server.on('listening', () => console.log('Server', server.address()))
+// @ts-ignore
+server.on('error', ({ code }) => {
+  if (code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} in use. Retrying with port ${++PORT}...`)
+    server.close()
+
+    setTimeout(() => server.listen(PORT), 1000)
+  }
+})
 
 const tunnelChannel = io.of('/tunnel')
 tunnelChannel.on('connection', sockets.onNewSocketConnection)

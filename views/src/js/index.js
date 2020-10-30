@@ -43,7 +43,6 @@ const intitiateSocket = () => {
   socket.on('request', tunnelLocalhostToServer)
 }
 
-// FIXME: breaks while using reverse proxy
 /** @param {LocalhostTunnel.ClientRequest} serverRequest */
 const preProcessContentRange = serverRequest => {
   const {
@@ -51,31 +50,25 @@ const preProcessContentRange = serverRequest => {
     headers: { range }
   } = serverRequest
 
-  if (range) {
-    const [rangeStart, rangeEnd] = parseRangeHeader(range)
+  if (!range) return serverRequest
 
-    const maxRange = rangeStart + streamChunkSize - 1
-    const safeRange = Math.min(
-      maxRange,
-      responseSizeCache[path] - 1 || maxRange
-    )
+  const [rangeStart, rangeEnd] = parseRangeHeader(range)
 
-    if (rangeEnd) {
-      if (rangeEnd > safeRange) {
-        const newRange = `bytes=${rangeStart}-${safeRange}`
-        serverRequest.headers.range = newRange
-      }
-    } else serverRequest.headers.range += safeRange
-  }
+  const maxRange = rangeStart + streamChunkSize - 1
+  const safeRange = Math.min(maxRange, responseSizeCache[path] - 1 || maxRange)
+
+  if (rangeEnd) {
+    if (rangeEnd > safeRange)
+      serverRequest.headers.range = `bytes=${rangeStart}-${safeRange}`
+  } else serverRequest.headers.range += safeRange
+
   return serverRequest
 }
 
-/** @param {LocalhostTunnel.ClientRequest} serverRequest
- * @returns {Promise<LocalhostTunnel.ClientRequest>} */
-const preprocessRequest = serverRequest =>
+/** @param {LocalhostTunnel.ClientRequest} serverRequest */
+const preprocessFiles = serverRequest =>
   new Promise(resolve => {
-    serverRequest = preProcessContentRange(serverRequest)
-    const { headers, requestId: formadataId } = serverRequest
+    const { headers, requestId } = serverRequest
     if (!containsFormdata(headers)) return resolve(serverRequest)
 
     /** @type {Express.Multer.File[]} */
@@ -84,8 +77,9 @@ const preprocessRequest = serverRequest =>
 
     /** @param {Express.Multer.File} file */
     const socketOnFileReceived = file => {
+      // TODO: on connection end
       if (file.data && file.data === 'DONE') {
-        socket.removeAllListeners(formadataId)
+        socket.removeAllListeners(requestId)
         serverRequest.files = receivedFiles
         // i++
 
@@ -103,8 +97,16 @@ const preprocessRequest = serverRequest =>
     }
 
     // TODO: add timer and garbage collect
-    socket.on(formadataId, socketOnFileReceived)
+    socket.on(requestId, socketOnFileReceived)
   })
+
+/** @param {LocalhostTunnel.ClientRequest} serverRequest
+ * @returns {Promise<LocalhostTunnel.ClientRequest>} */
+const preprocessRequest = async serverRequest => {
+  serverRequest = preProcessContentRange(serverRequest)
+  serverRequest = await preprocessFiles(serverRequest)
+  return serverRequest
+}
 
 /** @param {LocalhostTunnel.ClientRequest} req */
 const makeRequestToLocalhost = req => {
@@ -190,10 +192,7 @@ function sendResponseToServer(localhostResponse, responseId) {
   const dataByteLength = data.byteLength,
     path = url.replace(`${serverProtocol}//localhost:${portInput.value}`, '')
 
-  if (status === 200) {
-    responseSizeCache[path] = dataByteLength
-  }
-  // PARTIAL CONTENT
+  if (status === 200) responseSizeCache[path] = dataByteLength
   else if (status === 206) {
     const [startByte, endByte] = parseRangeHeader(range)
     const originalSize = responseSizeCache[path] || maxStreamSize

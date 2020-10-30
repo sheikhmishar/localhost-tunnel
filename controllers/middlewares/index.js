@@ -27,9 +27,10 @@ const expressErrorHandler = (err, _, res, __) => {
 
 /** @param {HTTP.IncomingMessage} req @param {HTTP.ServerResponse} res */
 const ioPreflight = (req, res) => {
+  const requestedHeaders = req.headers['access-control-request-headers']
   res.writeHead(200, {
-    'Access-Control-Allow-Headers':
-      req.headers['access-control-request-headers'],
+    'Access-Control-Allow-Headers': requestedHeaders,
+    'Access-Control-Expose-Headers': requestedHeaders + ',authorization',
     'Access-Control-Allow-Origin': req.headers.origin,
     'Access-Control-Allow-Credentials': 'true'
   })

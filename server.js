@@ -27,7 +27,8 @@ const corsConfig = {
   credentials: true,
   optionsSuccessStatus: 204,
   origin: true,
-  maxAge: 60 * 60
+  maxAge: 60 * 60,
+  exposedHeaders: '*,authorization'
 }
 const corsInstance = cors(corsConfig)
 // @ts-ignore
@@ -42,6 +43,7 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(middlewares.headersInspector)
   app.use(logger)
 }
+app.disable('x-powered-by')
 app.use(corsInstance)
 app.use('/io', express.static(socketIoClientDir))
 app.use(express.static(viewsDir))

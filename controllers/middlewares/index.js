@@ -25,4 +25,20 @@ const expressErrorHandler = (err, _, res, __) => {
   res.status(500).json({ message: '500 Internal Server Error' })
 }
 
-module.exports = { headersInspector, expressErrorHandler, unknownRouteHandler }
+/** @param {HTTP.IncomingMessage} req @param {HTTP.ServerResponse} res */
+const ioPreflight = (req, res) => {
+  res.writeHead(200, {
+    'Access-Control-Allow-Headers':
+      req.headers['access-control-request-headers'],
+    'Access-Control-Allow-Origin': req.headers.origin,
+    'Access-Control-Allow-Credentials': 'true'
+  })
+  res.end()
+}
+
+module.exports = {
+  headersInspector,
+  expressErrorHandler,
+  unknownRouteHandler,
+  ioPreflight
+}

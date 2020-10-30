@@ -30,23 +30,11 @@ const corsConfig = {
   maxAge: 60 * 60
 }
 const corsInstance = cors(corsConfig)
-const allowedHeaders =
-  ',content-type,authorization,cache-control,upgrade-insecure-requests'
-/** @param {HTTP.IncomingMessage} req @param {HTTP.ServerResponse} res */
-const handlePreflightRequest = (req, res) => {
-  res.writeHead(200, {
-    'Access-Control-Allow-Headers':
-      Object.keys(req.headers).join(',') + allowedHeaders,
-    'Access-Control-Allow-Origin': req.headers.origin,
-    'Access-Control-Allow-Credentials': 'true'
-  })
-  res.end()
-}
 // @ts-ignore
 const io = socketIo(server, {
   path: '/sock',
   serveClient: false,
-  handlePreflightRequest
+  handlePreflightRequest: middlewares.ioPreflight
 })
 
 if (process.env.NODE_ENV !== 'production') {

@@ -19,8 +19,8 @@ export const validateUsername = async username => {
 }
 
 export const inputHasErrors = async () => {
-  const port = portInput.value,
-    username = usernameInput.value
+  const port = /** @type {string} */ (portInput.value),
+    username = /** @type {string} */ (usernameInput.value)
   if (port.length < 2)
     return 'Port must contain 2 digits minimum and number only'
   else if (port[0] === '0') return 'Port cannot start with 0'
@@ -29,6 +29,9 @@ export const inputHasErrors = async () => {
   else if (username.includes('.')) return 'Username cannot have .'
   else if (username.includes('"')) return 'Username cannot have "'
   else if (username.includes("'")) return "Username cannot have '"
+  else if (username.includes(' ')) return 'Username cannot have space'
+  else if (username.match(/[A-Z]/))
+    return 'Username cannot have uppercase letter'
   else if (!(await validateUsername(username)))
     return 'Username exists or connection error'
   return false

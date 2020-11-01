@@ -11,13 +11,16 @@ export const streamChunkSize = 1024 * 1024 * 2, // 2MB
 
 // Server variables
 export const serverURL = location.host,
+  serverPORT = parseInt(location.port),
   noSubdomain =
-    serverURL.includes(':') || serverURL.match(/\d+\.\d+\.\d+\.\d+/),
+    serverURL === 'localhost' ||
+    serverURL.match(/\d+\.\d+\.\d+\.\d+/) ||
+    (serverPORT && serverPORT !== 8080),
   serverProtocol = location.protocol || 'http:',
   socketProtocol = serverProtocol === 'http:' ? 'ws:' : 'wss:',
   validatorURL = `${serverProtocol}//${serverURL}/validateusername`,
   socketTunnelURL = `${socketProtocol}//${serverURL}/tunnel`,
   socketWatchURL = `${socketProtocol}//${serverURL}/watch`,
   isLocalhostRoot =
-    (location.hostname === 'localhost' || location.hostname.includes('.lan')) &&
+    location.hostname.match(/(\.lan)|(localhost)/) &&
     location.origin + '/' === location.href

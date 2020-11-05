@@ -20,7 +20,8 @@ Have you ever used `ngrok` like services, where you can make your localhost web 
 11. Authorization supported
 12. Clickable link on logger
 13. Real-time chunked file streaming with pause-resume support
-14. Sub-domain added support for absolute path. Also, react-router support confirmed.
+14. Sub-domain added support for absolute path. Also, react-router support confirmed
+15. Dynamic, auto-scaled, multi-node clustering support
 
 ## Screenshots:
 
@@ -34,7 +35,6 @@ Have you ever used `ngrok` like services, where you can make your localhost web 
 3. Max content-size is limited to your RAM size
 4. CORS(Cross Origin Resource Sharing) must be enabled on the client localhost server
 5. Redirect hasn't been implemented yet
-6. Sometimes, weird caching issue happens on production, which doesn't happen in my local machine
 
 ## How to use (For Users):
 1. Run your localhost http/s project that your want to be live. (example,`VSCode live server`)
@@ -59,6 +59,18 @@ npm i && npm build && npm start
 7. Now any request you make at the given address (ex. GET http://sony.tunnel.lan/updates) will be tunnelled to the localhost address (ex. GET http://localhost:3000/updates)
 
 ## `nginx` config
+> websock.conf
+
+```bash
+proxy_http_version          1.1;
+proxy_set_header            Upgrade                 $http_upgrade;
+proxy_set_header            Connection              'upgrade';
+proxy_set_header            Host                    $host;
+proxy_cache_bypass          $http_upgrade;
+```
+
+> domain_name.ext
+
 ```bash
 server {
 	listen                      80;
@@ -68,20 +80,12 @@ server {
 
 	location / {
 		proxy_pass                  http://localhost:5000;
-		proxy_http_version          1.1;
-		proxy_set_header            Upgrade                 $http_upgrade;
-		proxy_set_header            Connection              'upgrade';
-		proxy_set_header            Host                    $host;
-		proxy_cache_bypass          $http_upgrade;
+		include											websock.conf;
 	}
 
 	location /sock {
 		proxy_pass                  http://localhost:5000/sock;
-		proxy_http_version          1.1;
-		proxy_set_header            Upgrade                 $http_upgrade;
-		proxy_set_header            Connection              'upgrade';
-		proxy_set_header            Host                    $host;
-		proxy_cache_bypass          $http_upgrade;
+		include											websock.conf;
 	}
 
 	location ~(\.|\/)test {
@@ -97,15 +101,11 @@ server {
 
 	location / {
 		proxy_pass                  http://localhost:5000/$subdomain$request_uri;
-		proxy_http_version          1.1;
-		proxy_set_header            Upgrade                 $http_upgrade;
-		proxy_set_header            Connection              'upgrade';
-		proxy_set_header            Host                    $host;
-		proxy_cache_bypass          $http_upgrade;
+		include											websock.conf;
 	}
 }
 ```
 
-### A demo has been hosted at http://tunnel.sheikhmishar.me/
+### A demo has been hosted at http://tunnel.sheikhmishar.me/. If you need larger files and speed, use http://tunnel.sheikhmishar.me:8080/
 
 ### Tons of credits go to: [Omran Jamal](https://github.com/omranjamal). Whole project was his idea

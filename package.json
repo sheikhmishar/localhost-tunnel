@@ -24,17 +24,24 @@
   "license": "MIT",
   "main": "server.js",
   "scripts": {
-    "test": "nodemon -i views -x \"npm run test:server && npm run test:client\"",
-    "test:server": "mocha \"./{,!(views|node_modules)/**}/*.test.js\"",
-    "test:server:alt": "mocha \"./@(controllers|models|helpers)/**/*.test.js\"",
-    "test:client": "node -e \"require('./views/node_modules/opn')('http://localhost:5000/test')\" && npm run test:watch --prefix views",
     "build": "npm run build --prefix views",
     "build:dev": "npm run build:dev --prefix views",
     "postinstall": "npm i --prefix views && npm run build",
+    "production":"bash -c \"export NODE_ENV=production TRACKER_PORT=5100 TRACKER_IP=127.0.0.1;node server\"",
+    "production:tracker":"bash -c \"export NODE_ENV=production;node tracker\"",
+    "test": "npm run test:server && npm run test:client",
+    "test:client": "node -e \"require('./views/node_modules/opn')('http://localhost:5000/test')\" && npm run test:build --prefix views",
+    "test:server": "mocha \"./{,!(views|node_modules)/**}/*.test.js\"",
+    "test:server:alt": "mocha \"./@(controllers|models|helpers)/**/*.test.js\"",
+    "tracker": "node tracker",
     "watch": "concurrently --handle-input -r npm:watch:server npm:watch:client",
-    "watch:server": "nodemon -i views",
     "watch:client": "npm run watch --prefix views",
-    "watch:debug": "nodemon -e js,json -x \"node --inspect-brk server.js\""
+    "watch:server": "nodemon -i views -e js,json -x \"node -r dotenv/config server\"",
+    "watch:inspect": "nodemon -e js,json -x \"node --inspect-brk server.js\"",
+    "watch:test": "concurrently --handle-input -r npm:watch:test:client npm:watch:test:client\"",
+    "watch:test:client": "node -e \"require('./views/node_modules/opn')('http://localhost:5000/test')\" && npm run test:watch --prefix views",
+    "watch:test:server": "nodemon -i views -e js,json -x \"npm run test:server\"",
+    "watch:tracker": "nodemon -i views -e js,json -x \"node -r dotenv/config tracker\""
   },
   "engines": {
     "node": "v12.16.1",
@@ -43,6 +50,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.17.1",
+    "http-proxy-middleware": "^1.0.6",
     "multer": "^1.4.2",
     "socket.io": "^2.3.0",
     "uuid": "^8.2.0"
@@ -50,13 +58,15 @@
   "optionalDependencies": {
     "@types/cors": "^2.8.7",
     "@types/express": "^4.17.8",
+    "@types/http-proxy-middleware": "^0.19.3",
     "@types/mocha": "^8.0.3",
+    "@types/morgan": "^1.9.1",
     "@types/multer": "^1.4.4",
     "@types/socket.io": "^2.1.11",
     "@types/socket.io-client": "^1.4.33"
   },
   "devDependencies": {
-    "@types/morgan": "^1.9.1",
+    "dotenv": "^8.2.0",
     "mocha": "^8.1.3",
     "morgan": "^1.10.0"
   }

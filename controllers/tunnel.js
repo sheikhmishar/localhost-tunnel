@@ -5,24 +5,32 @@
  * GPLv3 Licensed
  */
 
-const { findClientSocketByUsername } = require('../models/ClientSocket')
+const { findClientSocket } = require('../models/NativeClientSocket')
+const { findClientProxy } = require('../models/ProxyClientSocket')
+const { byteToString, sanitizeHeaders } = require('../helpers')
 const uid = /** @type {() => string} */ (require('uuid').v1)
-const { byteToString, log, sanitizeHeaders } = require('../helpers')
+const debug = require('debug')('server:controllers:tunnel')
 
 /** @type {Express.RequestHandler} */
 const validateUsername = (req, res) => {
-  if (findClientSocketByUsername(req.body.username))
+  const { username } = req.body
+  if (findClientSocket(username) || findClientProxy(username))
     res.status(400).json({ isValidUsername: false })
   else res.status(200).json({ isValidUsername: true })
 }
 
 /** @type {Express.RequestHandler} */
-const handleTunneling = (req, res) => {
+const handleTunneling = (req, res, next) => {
   // Redirecting all requests from requester to client localhost
   const { username } = req.params
-  const clientSocket = findClientSocketByUsername(username)
-  if (!clientSocket)
-    return res.status(404).json({ message: 'Client not available' })
+  const clientSocket = findClientSocket(username)
+  if (!clientSocket) {
+    const clientProxy = findClientProxy(username)
+    if (!clientProxy)
+      return res.status(404).json({ message: 'Client not available' })
+      
+    return clientProxy(req, res, next)
+  }
 
   const files = /**@type {Express.Multer.File[]} */ (req.files || []),
     uniqueId = uid(),
@@ -31,11 +39,13 @@ const handleTunneling = (req, res) => {
       params: { 0: pathname },
       method,
       body,
-      _parsedUrl: { search }
+      _parsedUrl: { search: query }
     } = req,
     headers = sanitizeHeaders(req.headers),
-    path = `/${pathname}${search || ''}`,
-    fileName = `/${pathname}`.endsWith('/') ? 'index.html' : path.split('/').pop()
+    path = `/${pathname}${query || ''}`,
+    fileName = `/${pathname}`.endsWith('/')
+      ? 'index.html'
+      : path.split('/').pop()
 
   /** @type {LocalhostTunnel.ServerRequest} */
   const request = {
@@ -61,7 +71,7 @@ const handleTunneling = (req, res) => {
     res.removeAllListeners('close')
     res.removeAllListeners('finish')
 
-    log('STOP res', eventName, res.req.originalUrl, responseId)
+    debug('STOP res', eventName, res.req.originalUrl, responseId)
     if (clientSocket.listeners(responseId).length) {
       clientSocket.emit(responseId, false)
       clientSocket.removeAllListeners(responseId)
@@ -84,13 +94,13 @@ const handleTunneling = (req, res) => {
       if (res.write(data)) continueReceivingData()
       else res.once('drain', continueReceivingData)
 
-      res.once('error', stopReceivingData('error')) // TODO: test garbage collect client
+      res.once('error', stopReceivingData('error'))
       res.once('close', stopReceivingData('close'))
       res.once('finish', stopReceivingData('finish'))
 
       if (process.env.NODE_ENV !== 'production') {
         responseLength += Buffer.byteLength(data, 'binary')
-        log(method, `${username}${path}`, byteToString(responseLength))
+        debug(method, `${username}${path}`, byteToString(responseLength))
       }
       return
     }
@@ -101,7 +111,6 @@ const handleTunneling = (req, res) => {
     res.set('Content-Disposition', `inline; filename="${fileName}"`)
     res.contentType(headers['content-type'] || fileName)
 
-    // TODO: prune 'Last-Modified' 'Cache-Control'
     if (!res.hasHeader('Content-Length') && dataByteLength)
       res.set('Content-Length', dataByteLength.toString())
 
@@ -112,15 +121,15 @@ const handleTunneling = (req, res) => {
 
 /** @type {Express.RequestHandler} */
 const testTunnel = (req, res) => {
-  req.on('data', chunk => log('req not parsed yet\n', chunk))
+  req.on('data', chunk => debug('req not parsed yet\n', chunk))
 
   const { body, files } = req
   Object.keys(body).forEach(key => {
     const value = body[key]
     if (value.length > 125) body[key] = `${value.slice(0, 125)} --->`
   })
-  log('----------------\nbody\n----------------\n', body)
-  if (files) log('----------------\nfiles\n----------------\n', files)
+  debug('----------------\nbody\n----------------\n', body)
+  if (files) debug('----------------\nfiles\n----------------\n', files)
   res.sendStatus(200)
 }
 

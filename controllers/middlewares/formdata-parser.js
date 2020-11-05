@@ -5,12 +5,13 @@
  * GPLv3 Licensed
  */
 
+const debug = require('debug')('server:middlewares:formdata')
 const concatStream = require('concat-stream')
-const { log } = require('../../helpers')
 const { is } = require('type-is')
 const Busboy = require('busboy')
 
-const formDataParser = (req, res, next) => {
+/** @type {Express.RequestHandler} */
+const formDataParser = (req, _, next) => {
   if (!is(req.get('Content-Type'), ['multipart'])) return next()
 
   req.body = req.body || {}
@@ -18,14 +19,15 @@ const formDataParser = (req, res, next) => {
   req.files = []
   const busboy = new Busboy({ headers: req.headers })
 
+  /** @param {Error} error */
   const drainAll = error => {
     req.unpipe(busboy)
     busboy.removeAllListeners()
 
     req.files = error ? [] : req.files
 
-    req.on('data', chunk => log('drain', chunk))
-    req.on('end', () => log('drain end'))
+    req.on('data', chunk => debug('drain', chunk))
+    req.on('end', () => debug('drain end'))
     req.on('readable', req.read.bind(req))
 
     next(error)
@@ -50,8 +52,8 @@ const formDataParser = (req, res, next) => {
     })
     fstream.pipe(buffer)
 
-    fstream.on('data', data => log('fstream', filename, data.length, 'B'))
-    fstream.on('end', () => log('fstream', filename, 'DONE'))
+    fstream.on('data', data => debug('fstream', filename, data.length, 'B'))
+    fstream.on('end', () => debug('fstream', filename, 'DONE'))
     fstream.on('error', drainAll)
   }
 

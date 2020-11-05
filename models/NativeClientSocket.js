@@ -5,6 +5,8 @@
  * GPLv3 Licensed
  */
 
+const debug = require('debug')('server:model:nativesocket')
+
 let clientSockets = []
 
 const getClientSockets = () => clientSockets
@@ -12,11 +14,11 @@ const getClientSockets = () => clientSockets
 const getClientSocketCount = () => clientSockets.length
 
 const getClientSocketsSummary = () =>
-  clientSockets.forEach(socket => console.log(socket.id, socket.username))
+  clientSockets.forEach(socket => debug(socket.id, socket.username))
 
 /** @param {string} clientUsername
  *  @returns {SocketIO.Socket} */
-const findClientSocketByUsername = clientUsername =>
+const findClientSocket = clientUsername =>
   clientSockets.find(({ username }) => username === clientUsername)
 
 /** @param {SocketIO.Socket} clientSocket */
@@ -31,7 +33,7 @@ const ClientSocket = {
   getClientSockets,
   getClientSocketsSummary,
   getClientSocketCount,
-  findClientSocketByUsername,
+  findClientSocket,
   addClientSocket,
   removeClientSocket
 }

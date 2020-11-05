@@ -25,8 +25,6 @@ const validTextTypes = [
   'urlencoded'
 ]
 
-const log = process.env.NODE_ENV !== 'production' ? console.log : () => true
-
 const forbiddenHeaders = [
     // TODO: recheck
     'accept-charset',
@@ -79,4 +77,7 @@ const sanitizeHeaders = headers => {
   return headers
 }
 
-module.exports = { byteToString, validTextTypes, log, sanitizeHeaders }
+/** @param {Object<string, object>} obj */
+const prettyJson = obj => JSON.stringify(obj, null, 4)
+
+module.exports = { byteToString, validTextTypes, sanitizeHeaders, prettyJson }

@@ -5,13 +5,14 @@
  * GPLv3 Licensed
  */
 
+const debug = require('debug')('server:middlewares:index')
 /** @type {Chalk} */ let chalk
 if (process.env.NODE_ENV !== 'production') chalk = require('chalk')
+const globals = require('../../globals')
 
 /** @type {Express.RequestHandler} */
-const headersInspector = (req, _, next) => {
-  const headers = JSON.stringify(req.headers, null, 2)
-  console.log(chalk.greenBright(headers))
+const headersInspector = ({ headers }, _, next) => {
+  debug(chalk.green(JSON.stringify(headers, null, 2)))
   next()
 }
 
@@ -21,7 +22,7 @@ const unknownRouteHandler = (_, res) =>
 
 /** @type {Express.ErrorRequestHandler} */
 const expressErrorHandler = (err, _, res, __) => {
-  if (process.env.NODE_ENV !== 'production') console.error(chalk.red(err))
+  if (process.env.NODE_ENV !== 'production') debug(chalk.red(err))
   res.status(500).json({ message: '500 Internal Server Error' })
 }
 

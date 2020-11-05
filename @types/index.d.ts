@@ -78,7 +78,13 @@ declare global {
     interface ErrorRequestHandler extends express.ErrorRequestHandler {}
     interface RequestHandler extends express.RequestHandler {}
     interface Request {
-      method: HTTPMethods,
+      params: {
+        username: string
+      }
+      body: {
+        username: string
+      }
+      method: HTTPMethods
       _parsedUrl: URL
     }
     interface Response {}
@@ -117,6 +123,14 @@ declare global {
     onreadystatechange:
       | ((this: Window, ev: ProgressEvent<Window>) => any)
       | null
+  }
+
+  interface upstreamInfo {
+    [upstreamId: string]: {
+      address?: string
+      subs: string[]
+      proxyMiddleware?: Express.RequestHandler
+    }
   }
 }
 

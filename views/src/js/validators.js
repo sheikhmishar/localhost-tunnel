@@ -30,6 +30,8 @@ export const inputHasErrors = async () => {
   else if (username.includes('"')) return 'Username cannot have "'
   else if (username.includes("'")) return "Username cannot have '"
   else if (username.includes(' ')) return 'Username cannot have space'
+  else if (username.match(/^(www)|(sock)|(test)|(ping)$/g))
+    return `Username cannot be ${username}`
   else if (username.match(/[A-Z]/))
     return 'Username cannot have uppercase letter'
   else if (!(await validateUsername(username)))

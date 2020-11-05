@@ -5,48 +5,42 @@
  * GPLv3 Licensed
  */
 
+const ioClient = require('socket.io-client')
 const socketIo = require('socket.io')
 const express = require('express')
+const debugp = require('debug')
 const cors = require('cors')
 const path = require('path')
 const http = require('http')
 const fs = require('fs')
+const globals = require('./globals')
 const router = require('./controllers/routes')
-const middlewares = require('./controllers/middlewares')
 const sockets = require('./controllers/socket')
+const middlewares = require('./controllers/middlewares')
 
+const debug = debugp('server')
 const app = express()
 const server = http.createServer(app)
 const viewsDir = path.join(__dirname, './views/build')
 const vendorDir = path.join(__dirname, './views/src/js/vendor')
+const corsInstance = cors(globals.corsConfig)
+const { TRACKER_IP, TRACKER_PORT } = process.env
+const io = socketIo(server, globals.socketIoConfig)
+const trackerAddr = `ws://${TRACKER_IP}:${TRACKER_PORT}/list`
 const socketIoClientDir = path.join(
   __dirname,
   './node_modules/socket.io-client/dist'
 )
-/** @type {Express.Cors.Options} */
-const corsConfig = {
-  credentials: true,
-  optionsSuccessStatus: 204,
-  origin: true,
-  maxAge: 60 * 60,
-  exposedHeaders: '*,authorization'
-}
-const corsInstance = cors(corsConfig)
-// @ts-ignore
-const io = socketIo(server, {
-  path: '/sock',
-  serveClient: false,
-  handlePreflightRequest: middlewares.ioPreflight
-})
 
 if (process.env.NODE_ENV !== 'production') {
   const logger = require('morgan')('dev')
   app.use(middlewares.headersInspector)
   app.use(logger)
 }
+app.set('name', 'localhost-tunnel')
 app.disable('x-powered-by')
 app.use(corsInstance)
-app.use('/io', express.static(socketIoClientDir))
+app.use(express.static(socketIoClientDir))
 app.use(express.static(viewsDir))
 app.use(express.static(vendorDir))
 app.use(express.raw())
@@ -55,25 +49,40 @@ app.use(middlewares.unknownRouteHandler)
 app.use(middlewares.expressErrorHandler)
 
 let PORT = parseInt(process.env.PORT) || 5000
-server.listen(PORT)
+const IP = process.env.IP || '127.0.0.1'
 
-server.on('listening', () => console.log('Server', server.address()))
-// @ts-ignore
-server.on('error', ({ code }) => {
-  if (code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} in use. Retrying with port ${++PORT}...`)
+const onServerListening = () => {
+  debug('Server listening on:', server.address())
+
+  const address = `http://${IP}:${PORT}`
+  globals.serverAddress = address
+  
+  const trackerSocket = ioClient(trackerAddr, { path: '/list' })
+  globals.trackerSocket = trackerSocket
+  trackerSocket.on('connect', sockets.onTrackerClientConnection)
+}
+
+const onServerError = err => {
+  if (err.code === 'EADDRINUSE') {
+    debug(`Port ${PORT} in use. Retrying with port ${++PORT}...`)
+
     server.close()
+    globals.serverAddress = null
 
-    setTimeout(() => server.listen(PORT), 1000)
+    setTimeout(() => server.listen(PORT, IP), 1000)
   }
-})
+}
+
+server.listen(PORT, IP)
+server.on('listening', onServerListening)
+server.on('error', onServerError)
 
 const tunnelChannel = io.of('/tunnel')
-tunnelChannel.on('connection', sockets.onNewSocketConnection)
+tunnelChannel.on('connection', sockets.onTunnelServerConnection)
 
 if (process.env.NODE_ENV !== 'production') {
   const watchChannel = io.of('/watch')
-  watchChannel.on('connection', sockets.onWatchSocketConnection)
+  watchChannel.on('connection', sockets.onWatchServerConnection)
 
   fs.watch(viewsDir, { recursive: true }, () =>
     setTimeout(() => watchChannel.emit('refresh'), 500)

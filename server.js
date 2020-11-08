@@ -24,8 +24,8 @@ const server = http.createServer(app)
 const viewsDir = path.join(__dirname, './views/build')
 const vendorDir = path.join(__dirname, './views/src/js/vendor')
 const corsInstance = cors(globals.corsConfig)
-const { TRACKER_IP, TRACKER_PORT } = process.env
 const io = socketIo(server, globals.socketIoConfig)
+const { TRACKER_IP = '127.0.0.1', TRACKER_PORT = 5100 } = process.env
 const trackerAddr = `ws://${TRACKER_IP}:${TRACKER_PORT}/list`
 const socketIoClientDir = path.join(
   __dirname,
@@ -56,10 +56,10 @@ const onServerListening = () => {
 
   const address = `http://${IP}:${PORT}`
   globals.serverAddress = address
-  
+
   const trackerSocket = ioClient(trackerAddr, { path: '/list' })
   globals.trackerSocket = trackerSocket
-  trackerSocket.on('connect', sockets.onTrackerClientConnection)
+  sockets.attachTrackerCallbacks()
 }
 
 const onServerError = err => {

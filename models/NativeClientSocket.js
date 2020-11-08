@@ -7,6 +7,7 @@
 
 const debug = require('debug')('server:model:nativesocket')
 
+/** @type {SocketIO.Socket[]} */
 let clientSockets = []
 
 const getClientSockets = () => clientSockets

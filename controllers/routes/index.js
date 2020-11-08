@@ -11,6 +11,11 @@ const multer = require('multer')().any()
 const formDataParser = require('../middlewares/formdata-parser')
 const textParser = require('../middlewares/text-parser')
 const { handleTunneling, testTunnel, validateUsername } = require('../tunnel')
+const {
+  getSocketsSummary,
+  getProxiesSummary,
+  getTrackerListenerCount
+} = require('../socket')
 
 const router = express.Router(),
   urlencoded = express.urlencoded({ extended: true }),
@@ -26,9 +31,13 @@ if (process.env.NODE_ENV !== 'production') {
   router.use('/mocha', express.static(mochaDir))
 }
 
-router.get('/ping', (_, res) =>
-  res.status(200).json({ message: 'Server alive' })
-)
+router.get('/tracker', getTrackerListenerCount)
+
+router.get('/clients', getSocketsSummary)
+
+router.get('/proxies', getProxiesSummary)
+
+router.get('/ping', (_, res) => res.json({ message: 'Server alive' }))
 
 router.all('/:username/*', textParser, formDataParser, handleTunneling)
 

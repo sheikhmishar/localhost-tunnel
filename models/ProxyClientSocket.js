@@ -22,6 +22,8 @@ const initUpstreams = u => {
     else upstreams[id].proxyMiddleware = getProxyMiddleware(address)
 }
 
+const getAllUpstreams = () => upstreams
+
 /** @param {string} upstreamId @param {string} address */
 const addUpstream = (upstreamId, address) => {
   debug('SERVER SOCKET', upstreamId, 'ADDRESS', address)
@@ -45,13 +47,6 @@ const findClientProxy = username => {
   return null
 }
 
-/** @param {string} username // TODO */
-const findClientAddress = username => {
-  for (const { subs, address } of Object.values(upstreams))
-    if (subs.includes(username)) return address
-  return null
-}
-
 /** @param {string} upstreamId @param {string} username */
 const addProxyClient = (upstreamId, username) => {
   debug(username, 'CONNECTED TO SERVER', upstreamId)
@@ -69,6 +64,7 @@ const removeProxyClient = (upstreamId, username) => {
 
 module.exports = {
   initUpstreams,
+  getAllUpstreams,
   addUpstream,
   removeUpstream,
   findClientProxy,

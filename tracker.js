@@ -89,6 +89,35 @@ const onTrackerIoConnect = upstream => {
 }
 subslistChannel.on('connection', onTrackerIoConnect)
 
+/** @type {Express.RequestHandler} */
+const getSocketsSummary = (_, res) =>
+  res.json(
+    upstreamSockets.map(({ connected, handshake, rooms }, i) => ({
+      connected,
+      handshake,
+      rooms,
+      listenerCount: {
+        join: upstreamSockets[i].listenerCount('upstream_join'),
+        disconnect: upstreamSockets[i].listenerCount('disconnect'),
+        subs_join: upstreamSockets[i].listenerCount('upstream_subs_join'),
+        subs_leave: upstreamSockets[i].listenerCount('upstream_subs_leave')
+      }
+    }))
+  )
+
+/** @param {string} subsName */
+const getSubsAddress = subsName => {
+  for (const { subs, address } of Object.values(upstreamsInfo))
+    if (subs.includes(subsName)) return address
+  return null
+}
+
+trackerApp.get('/upstreams', (_, res) => res.json(upstreamsInfo))
+trackerApp.get('/subs/:name', ({ params: { name } }, res) =>
+  res.json({ subscriber_address: getSubsAddress(name) })
+)
+trackerApp.get('/sockets', getSocketsSummary)
+
 trackerServer
   .listen(TRACKER_PORT, TRACKER_IP)
   .on('listening', () => debug('Server', trackerServer.address()))

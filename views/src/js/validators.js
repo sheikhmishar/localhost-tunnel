@@ -24,6 +24,7 @@ export const inputHasErrors = async () => {
   if (port.length < 2)
     return 'Port must contain 2 digits minimum and number only'
   else if (port[0] === '0') return 'Port cannot start with 0'
+  // TODO: range
   else if (username.length <= 0) return 'Username length must be at least 1'
   else if (username.includes('/')) return 'Username cannot have /'
   else if (username.includes('.')) return 'Username cannot have .'

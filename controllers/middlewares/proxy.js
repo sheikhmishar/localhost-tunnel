@@ -6,7 +6,7 @@
  */
 
 const { createProxyMiddleware } = require('http-proxy-middleware')
-const debug = require('debug')('tracker:proxy')
+const debug = require('debug')('server:middleware:proxy')
 const chalk = require('chalk')
 const { prettyJson } = require('../../helpers')
 
@@ -14,7 +14,13 @@ const { prettyJson } = require('../../helpers')
 const proxyOnError = (err, req, res) => {
   debug('ERR\n', chalk.red(prettyJson(err)))
   debug('REQ\n', chalk.green(prettyJson(req.headers)))
-  res.status(500).json({ message: '500 Upstream Error' })
+  if (res.status) res.status(500).json({ message: '500 Upstream Error' })
+  else {
+    debug('ERR SOCK', res)
+    // RES IS WEBSOCKET
+    // const resp = /** @type {WebSocket} */ (res)
+    // resp.close(500, JSON.stringify({ message: '500 Upstream Error' }))
+  }
 }
 
 const proxyLogConfig = {
@@ -37,6 +43,7 @@ const getProxyMiddleware = address =>
     changeOrigin: true,
     xfwd: true,
     ws: true,
+    // ws: false, // To ignore websocket proxy error
     logLevel: 'debug',
     onError: proxyOnError,
     logProvider: proxyLogProvider

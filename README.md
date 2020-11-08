@@ -49,7 +49,10 @@ chrome --incognito --disable-web-security --user-data-dir="/tmp/chrome_dev_temp"
 ## How to use (For Developers):
 1. Clone the repo, open terminal in the project directory and type:
 ```bash
-npm i && npm build && npm start
+npm i && npm build && npm run tracker
+```
+```bash
+npm start
 ```
 2. Use a Local DNS. I suggest using `Technitium DNS` and add a local domain according to your preference. Let's assume you have a domain `tunnel.me`
 3. Use `nginx` or any web server for reverse-proxy and sub-domain support. Configure it according to the next section (`nginx config`).
